@@ -36,11 +36,13 @@ export default defineConfig({
     "yjs",
   ],
   dts: true,
-  sourcemap: true,
+  minify: true,
+  sourcemap: false,
   esbuildOptions(options) {
     options.alias = {
       ...options.alias,
       "@futelab/folio-core/browser": resolve("../core/src/browser.ts"),
     };
+    options.legalComments = "none";
   },
 });
