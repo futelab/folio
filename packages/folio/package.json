@@ -27,6 +27,8 @@
   },
   "scripts": {
     "build": "tsup --config tsup.config.ts && node scripts/build-styles.mjs",
+    "prepack": "node scripts/pack-manifest.mjs prepare",
+    "postpack": "node scripts/pack-manifest.mjs restore",
     "test": "vitest run --passWithNoTests --root ../.. packages/folio/src",
     "typecheck": "tsc --noEmit"
   },
