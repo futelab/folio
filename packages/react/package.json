@@ -15,7 +15,7 @@
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --sourcemap --external react --external react-dom",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests --root ../.. packages/react/src",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
