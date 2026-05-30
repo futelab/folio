@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/core.ts", "src/react.ts"],
+  entry: ["src/index.ts", "src/core.ts", "src/react.ts", "src/serialization.ts"],
   format: ["esm", "cjs"],
   platform: "browser",
   clean: true,
@@ -23,12 +23,14 @@ export default defineConfig({
     "@tiptap/extension-task-item",
     "@tiptap/extension-task-list",
     "@tiptap/extension-text-style",
+    "@tiptap/html",
     "@tiptap/markdown",
     "@tiptap/pm",
     "@tiptap/react",
     "@tiptap/starter-kit",
     "@tiptap/suggestion",
     "@tiptap/y-tiptap",
+    "happy-dom",
     "lucide-react",
     "react",
     "react-dom",

@@ -133,6 +133,25 @@ function renderText(node: JSONContent, key: string): ReactNode {
       rendered = <em key={markKey}>{rendered}</em>;
     } else if (mark.type === "code") {
       rendered = <code key={markKey}>{rendered}</code>;
+    } else if (mark.type === "strike") {
+      rendered = <del key={markKey}>{rendered}</del>;
+    } else if (mark.type === "underline") {
+      rendered = <u key={markKey}>{rendered}</u>;
+    } else if (mark.type === "highlight") {
+      const color =
+        typeof mark.attrs?.color === "string" ? mark.attrs.color : undefined;
+
+      rendered = (
+        <mark key={markKey} style={color ? { backgroundColor: color } : undefined}>
+          {rendered}
+        </mark>
+      );
+    } else if (mark.type === "textStyle" && typeof mark.attrs?.color === "string") {
+      rendered = (
+        <span key={markKey} style={{ color: mark.attrs.color }}>
+          {rendered}
+        </span>
+      );
     } else if (mark.type === "link") {
       const href = sanitizeUrl(mark.attrs?.href, anchorProtocols);
 
@@ -199,6 +218,8 @@ function renderNode(node: JSONContent, context: RenderContext, path: string): Re
       return <>{renderChildren(node.content, context, path)}</>;
     case "paragraph":
       return <p key={path}>{renderChildren(node.content, context, path)}</p>;
+    case "hardBreak":
+      return <br key={path} />;
     case "heading":
       return renderHeading(node, context, path);
     case "bulletList":
@@ -207,6 +228,27 @@ function renderNode(node: JSONContent, context: RenderContext, path: string): Re
       return <ol key={path}>{renderChildren(node.content, context, path)}</ol>;
     case "listItem":
       return <li key={path}>{renderChildren(node.content, context, path)}</li>;
+    case "taskList":
+      return (
+        <ul data-type="taskList" key={path}>
+          {renderChildren(node.content, context, path)}
+        </ul>
+      );
+    case "taskItem": {
+      const label = getNodeText(node) || "Task item";
+
+      return (
+        <li data-checked={String(Boolean(node.attrs?.checked))} data-type="taskItem" key={path}>
+          <input
+            aria-label={label}
+            checked={Boolean(node.attrs?.checked)}
+            readOnly
+            type="checkbox"
+          />
+          <div>{renderChildren(node.content, context, path)}</div>
+        </li>
+      );
+    }
     case "blockquote":
       return <blockquote key={path}>{renderChildren(node.content, context, path)}</blockquote>;
     case "horizontalRule":
@@ -230,6 +272,32 @@ function renderNode(node: JSONContent, context: RenderContext, path: string): Re
           {node.attrs?.caption ? <figcaption>{String(node.attrs.caption)}</figcaption> : null}
         </figure>
       );
+    case "table":
+      return (
+        <table key={path}>
+          <tbody>{renderChildren(node.content, context, path)}</tbody>
+        </table>
+      );
+    case "tableRow":
+      return <tr key={path}>{renderChildren(node.content, context, path)}</tr>;
+    case "tableHeader":
+      return (
+        <th key={path} scope="col">
+          {renderChildren(node.content, context, path)}
+        </th>
+      );
+    case "tableCell":
+      return <td key={path}>{renderChildren(node.content, context, path)}</td>;
+    case "details":
+      return (
+        <details key={path} open={node.attrs?.open !== false}>
+          {renderChildren(node.content, context, path)}
+        </details>
+      );
+    case "detailsSummary":
+      return <summary key={path}>{renderChildren(node.content, context, path)}</summary>;
+    case "detailsContent":
+      return <div key={path}>{renderChildren(node.content, context, path)}</div>;
     case "callout":
       return (
         <aside
@@ -258,6 +326,12 @@ function renderNode(node: JSONContent, context: RenderContext, path: string): Re
         </div>
       );
     }
+    case "mention":
+      return (
+        <span className="folio-mention" data-folio-mention="" key={path}>
+          {String(node.attrs?.label ?? node.attrs?.id ?? getNodeText(node))}
+        </span>
+      );
     case "tableOfContents":
       return renderTableOfContents(context, path);
     default:
