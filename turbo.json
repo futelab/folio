@@ -5,6 +5,11 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "@futelab/folio#build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/styles/**/*.css"],
+      "outputs": ["dist/**", "styles.css"]
+    },
     "dev": {
       "cache": false,
       "persistent": true
