@@ -5,6 +5,7 @@ export * from "./fixtures";
 export * from "./extensions/types";
 export * from "./extensions/registry";
 export * from "./extensions/defaultExtensions";
+export * from "./commands/defaultCommands";
 export * from "./serialization/html";
 export * from "./serialization/markdown";
 export * from "./testing/testExtensions";

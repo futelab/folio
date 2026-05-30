@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createDefaultFolioCommands } from "../commands/defaultCommands";
 import { createFolioExtension, createFolioExtensionRegistry } from "../index";
 
 describe("Folio extension registry", () => {
@@ -129,5 +130,108 @@ describe("Folio extension registry", () => {
     expect(registry.extensions.map((extension) => extension.name)).toEqual([
       "callout",
     ]);
+  });
+});
+
+describe("default Folio commands", () => {
+  const defaultCommands = () => createDefaultFolioCommands();
+
+  const commandNamed = (name: string) => {
+    const command = defaultCommands().find((candidate) => candidate.name === name);
+    if (!command) throw new Error(`Missing command: ${name}`);
+    return command;
+  };
+
+  it("exposes slash command labels in a stable order", () => {
+    expect(defaultCommands().map((command) => command.name)).toEqual([
+      "paragraph",
+      "heading1",
+      "heading2",
+      "heading3",
+      "bulletList",
+      "orderedList",
+      "todoList",
+      "quote",
+      "callout",
+      "divider",
+      "codeBlock",
+      "table",
+      "image",
+      "bookmark",
+      "toggle",
+      "toc",
+    ]);
+  });
+
+  it("returns false for null and malformed editor chains", () => {
+    const paragraph = commandNamed("paragraph");
+
+    expect(paragraph.action({ editor: null })).toBe(false);
+    expect(paragraph.action({ editor: {} })).toBe(false);
+    expect(paragraph.action({ editor: { chain: "not a function" } })).toBe(
+      false,
+    );
+    expect(paragraph.action({ editor: { chain: () => ({}) } })).toBe(false);
+    expect(
+      paragraph.action({
+        editor: { chain: () => ({ focus: () => ({ setParagraph: () => ({}) }) }) },
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false when the editor chain run returns false", () => {
+    const chain = {
+      focus: () => chain,
+      setParagraph: () => chain,
+      run: () => false,
+    };
+    const editor = { chain: () => chain };
+
+    expect(commandNamed("paragraph").action({ editor })).toBe(false);
+  });
+
+  it("calls the expected chain method for paragraph commands", () => {
+    let setParagraphCalls = 0;
+    const chain = {
+      focus: () => chain,
+      setParagraph: () => {
+        setParagraphCalls += 1;
+        return chain;
+      },
+      run: () => true,
+    };
+    const editor = { chain: () => chain };
+
+    expect(commandNamed("paragraph").action({ editor })).toBe(true);
+    expect(setParagraphCalls).toBe(1);
+  });
+
+  it("coerces bookmark attrs to strings and falls back title to url", () => {
+    let insertedContent: unknown;
+    const chain = {
+      focus: () => chain,
+      insertContent: (content: unknown) => {
+        insertedContent = content;
+        return chain;
+      },
+      run: () => true,
+    };
+    const editor = { chain: () => chain };
+
+    expect(
+      commandNamed("bookmark").action({
+        editor,
+        attrs: { url: 123, description: false },
+      }),
+    ).toBe(true);
+
+    expect(insertedContent).toEqual({
+      type: "bookmark",
+      attrs: {
+        url: "123",
+        title: "123",
+        description: "false",
+      },
+    });
   });
 });
