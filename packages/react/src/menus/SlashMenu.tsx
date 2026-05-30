@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import type { KeyboardEvent } from "react";
 import type { Editor } from "@tiptap/core";
-import { createDefaultFolioCommands } from "@futelab/folio-core";
-import type { FolioCommandContribution } from "@futelab/folio-core";
+import { createDefaultFolioCommands } from "@futelab/folio-core/browser";
+import type { FolioCommandContribution } from "@futelab/folio-core/browser";
 
 export interface SlashMenuProps {
   editor: Editor | null;
