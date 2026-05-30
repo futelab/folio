@@ -1,3 +1,178 @@
 .folio-reader {
+  background: var(--folio-color-bg);
   color: var(--folio-color-text);
+  font-family: var(--folio-font-family);
+  font-size: 16px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.folio-reader *,
+.folio-reader *::before,
+.folio-reader *::after {
+  box-sizing: border-box;
+}
+
+.folio-reader > *:first-child {
+  margin-top: 0;
+}
+
+.folio-reader > *:last-child {
+  margin-bottom: 0;
+}
+
+.folio-reader p {
+  margin: 0.35rem 0;
+}
+
+.folio-reader h1,
+.folio-reader h2,
+.folio-reader h3 {
+  color: var(--folio-color-text);
+  font-weight: 650;
+  line-height: 1.25;
+  margin: 1.2rem 0 0.5rem;
+}
+
+.folio-reader h1 {
+  font-size: 2rem;
+}
+
+.folio-reader h2 {
+  font-size: 1.5rem;
+}
+
+.folio-reader h3 {
+  font-size: 1.2rem;
+}
+
+.folio-reader ul,
+.folio-reader ol {
+  margin: 0.35rem 0;
+  padding-left: 1.5rem;
+}
+
+.folio-reader blockquote {
+  border-left: 3px solid var(--folio-color-border);
+  color: var(--folio-color-muted);
+  margin: 0.75rem 0;
+  padding-left: 0.9rem;
+}
+
+.folio-reader a {
+  color: var(--folio-color-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.folio-reader code {
+  background: var(--folio-color-hover);
+  border-radius: var(--folio-radius-sm);
+  font-family: var(--folio-font-mono);
+  font-size: 0.9em;
+  padding: 0.1rem 0.25rem;
+}
+
+.folio-reader pre {
+  background: var(--folio-color-surface);
+  border: 1px solid var(--folio-color-border);
+  border-radius: var(--folio-radius-md);
+  font-family: var(--folio-font-mono);
+  margin: 0.75rem 0;
+  overflow: auto;
+  padding: 0.75rem 0.9rem;
+}
+
+.folio-reader pre code {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+
+.folio-reader hr {
+  border: 0;
+  border-top: 1px solid var(--folio-color-border);
+  margin: 1.25rem 0;
+}
+
+.folio-reader img {
+  border-radius: var(--folio-radius-md);
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
+.folio-reader figure,
+.folio-reader__figure {
+  margin: 1rem 0;
+}
+
+.folio-reader figcaption {
+  color: var(--folio-color-muted);
+  font-size: 0.875rem;
+  margin-top: 0.35rem;
+}
+
+.folio-callout {
+  background: var(--folio-color-callout-bg);
+  border-left: 3px solid var(--folio-color-callout-border);
+  border-radius: var(--folio-radius-md);
+  margin: 0.75rem 0;
+  padding: 0.75rem 0.9rem;
+}
+
+.folio-bookmark {
+  border: 1px solid var(--folio-color-border);
+  border-radius: var(--folio-radius-md);
+  color: inherit;
+  display: block;
+  margin: 0.75rem 0;
+  padding: 0.85rem;
+  text-decoration: none;
+}
+
+.folio-bookmark a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.folio-bookmark:hover {
+  background: var(--folio-color-hover);
+}
+
+.folio-bookmark p {
+  color: var(--folio-color-muted);
+  font-size: 0.92rem;
+}
+
+.folio-reader__toc {
+  border: 1px solid var(--folio-color-border);
+  border-radius: var(--folio-radius-md);
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+}
+
+.folio-reader__toc ol {
+  list-style: none;
+  margin: 0;
+  padding-left: 0;
+}
+
+.folio-reader__toc a {
+  color: var(--folio-color-muted);
+  text-decoration: none;
+}
+
+.folio-reader__toc a:hover {
+  color: var(--folio-color-text);
+}
+
+.folio-reader__toc li[data-level="2"] {
+  padding-left: 1rem;
+}
+
+.folio-reader__toc li[data-level="3"] {
+  padding-left: 2rem;
 }
