@@ -4,8 +4,8 @@ import type { Editor } from "@tiptap/core";
 import {
   createDefaultTiptapExtensions,
   createEmptyFolioDocument,
-} from "@futelab/folio-core";
-import type { FolioDocument, FolioExtension } from "@futelab/folio-core";
+} from "@futelab/folio-core/browser";
+import type { FolioDocument, FolioExtension } from "@futelab/folio-core/browser";
 
 export interface UseFolioEditorOptions {
   value?: FolioDocument;

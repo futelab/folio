@@ -1,4 +1,4 @@
-import type { FolioDocument } from "@futelab/folio-core";
+import type { FolioDocument } from "@futelab/folio-core/browser";
 import { renderFolioNode } from "./reader/renderers";
 
 export interface FolioReaderProps {
