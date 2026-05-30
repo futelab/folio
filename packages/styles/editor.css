@@ -1,3 +1,361 @@
 .folio-editor {
+  background: var(--folio-color-bg);
   color: var(--folio-color-text);
+  font-family: var(--folio-font-family);
+  font-size: 16px;
+  line-height: 1.6;
+  position: relative;
+}
+
+.folio-editor *,
+.folio-editor *::before,
+.folio-editor *::after {
+  box-sizing: border-box;
+}
+
+.folio-editor__content {
+  min-height: 160px;
+  outline: none;
+}
+
+.folio-editor .ProseMirror {
+  outline: none;
+  overflow-wrap: anywhere;
+  padding: 0.25rem 0;
+  white-space: pre-wrap;
+}
+
+.folio-editor .ProseMirror:focus-visible {
+  outline: none;
+}
+
+.folio-editor .ProseMirror > *:first-child {
+  margin-top: 0;
+}
+
+.folio-editor .ProseMirror > *:last-child {
+  margin-bottom: 0;
+}
+
+.folio-editor .ProseMirror p {
+  margin: 0.35rem 0;
+}
+
+.folio-editor .ProseMirror h1,
+.folio-editor .ProseMirror h2,
+.folio-editor .ProseMirror h3 {
+  color: var(--folio-color-text);
+  font-weight: 650;
+  line-height: 1.25;
+  margin: 1.2rem 0 0.5rem;
+}
+
+.folio-editor .ProseMirror h1 {
+  font-size: 2rem;
+}
+
+.folio-editor .ProseMirror h2 {
+  font-size: 1.5rem;
+}
+
+.folio-editor .ProseMirror h3 {
+  font-size: 1.2rem;
+}
+
+.folio-editor .ProseMirror ul,
+.folio-editor .ProseMirror ol {
+  margin: 0.35rem 0;
+  padding-left: 1.5rem;
+}
+
+.folio-editor .ProseMirror blockquote {
+  border-left: 3px solid var(--folio-color-border);
+  color: var(--folio-color-muted);
+  margin: 0.75rem 0;
+  padding-left: 0.9rem;
+}
+
+.folio-editor .ProseMirror pre {
+  background: var(--folio-color-surface);
+  border: 1px solid var(--folio-color-border);
+  border-radius: var(--folio-radius-md);
+  font-family: var(--folio-font-mono);
+  margin: 0.75rem 0;
+  overflow: auto;
+  padding: 0.75rem 0.9rem;
+}
+
+.folio-editor .ProseMirror code {
+  background: var(--folio-color-hover);
+  border-radius: var(--folio-radius-sm);
+  font-family: var(--folio-font-mono);
+  font-size: 0.9em;
+  padding: 0.1rem 0.25rem;
+}
+
+.folio-editor .ProseMirror pre code {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+
+.folio-editor .ProseMirror a {
+  color: var(--folio-color-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.folio-editor .ProseMirror hr {
+  border: 0;
+  border-top: 1px solid var(--folio-color-border);
+  margin: 1.25rem 0;
+}
+
+.folio-editor .ProseMirror .folio-image {
+  border-radius: var(--folio-radius-md);
+  display: block;
+  height: auto;
+  margin: 0.75rem 0;
+  max-width: 100%;
+}
+
+.folio-editor .ProseMirror table {
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.folio-editor .ProseMirror th,
+.folio-editor .ProseMirror td {
+  border: 1px solid var(--folio-color-border);
+  min-width: 3rem;
+  padding: 0.35rem 0.5rem;
+  position: relative;
+  vertical-align: top;
+}
+
+.folio-editor .ProseMirror th {
+  background: var(--folio-color-surface);
+  font-weight: 600;
+}
+
+.folio-editor .ProseMirror .selectedCell::after {
+  background: var(--folio-color-selected);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.folio-editor .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.folio-editor .ProseMirror li[data-type="taskItem"] {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.folio-editor .ProseMirror li[data-type="taskItem"] > label {
+  flex: 0 0 auto;
+  margin-top: 0.2rem;
+}
+
+.folio-editor .ProseMirror li[data-type="taskItem"] > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.folio-editor .ProseMirror details {
+  border-radius: var(--folio-radius-md);
+  margin: 0.75rem 0;
+  padding: 0.2rem 0.35rem;
+}
+
+.folio-editor .ProseMirror summary {
+  border-radius: var(--folio-radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.2rem 0.35rem;
+}
+
+.folio-editor .ProseMirror summary:hover {
+  background: var(--folio-color-hover);
+}
+
+.folio-block-controls,
+.folio-editor__block-controls,
+.folio-bubble-toolbar,
+.folio-editor__bubble-toolbar,
+.folio-slash-menu,
+.folio-editor__slash-menu {
+  background: var(--folio-color-bg);
+  border: 1px solid var(--folio-color-border);
+  border-radius: var(--folio-radius-md);
+  box-shadow: var(--folio-shadow-menu);
+  color: var(--folio-color-text);
+}
+
+.folio-block-controls,
+.folio-editor__block-controls,
+.folio-bubble-toolbar,
+.folio-editor__bubble-toolbar {
+  align-items: center;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+}
+
+.folio-block-controls button,
+.folio-editor__block-controls button,
+.folio-bubble-toolbar button,
+.folio-editor__bubble-toolbar button,
+.folio-slash-menu__item,
+.folio-drag-handle,
+.folio-drag-handle__button {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: var(--folio-radius-sm);
+  color: var(--folio-color-muted);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  justify-content: center;
+  min-height: 28px;
+  min-width: 28px;
+  padding: 4px 6px;
+}
+
+.folio-block-controls button:hover,
+.folio-editor__block-controls button:hover,
+.folio-bubble-toolbar button:hover,
+.folio-editor__bubble-toolbar button:hover,
+.folio-slash-menu__item:hover,
+.folio-drag-handle:hover,
+.folio-drag-handle__button:hover {
+  background: var(--folio-color-hover);
+  color: var(--folio-color-text);
+}
+
+.folio-block-controls button:focus-visible,
+.folio-editor__block-controls button:focus-visible,
+.folio-bubble-toolbar button:focus-visible,
+.folio-editor__bubble-toolbar button:focus-visible,
+.folio-slash-menu__item:focus-visible,
+.folio-drag-handle:focus-visible,
+.folio-drag-handle__button:focus-visible {
+  box-shadow: var(--folio-shadow-focus);
+  outline: none;
+}
+
+.folio-block-controls button:disabled,
+.folio-editor__block-controls button:disabled,
+.folio-bubble-toolbar button:disabled,
+.folio-editor__bubble-toolbar button:disabled,
+.folio-drag-handle:disabled,
+.folio-drag-handle__button:disabled {
+  color: var(--folio-color-subtle);
+  cursor: default;
+  opacity: 0.55;
+}
+
+.folio-bubble-toolbar button[aria-pressed="true"],
+.folio-editor__bubble-toolbar button[aria-pressed="true"] {
+  background: var(--folio-color-selected);
+  color: var(--folio-color-text);
+}
+
+.folio-slash-menu,
+.folio-editor__slash-menu {
+  display: grid;
+  gap: 2px;
+  max-height: 280px;
+  max-width: calc(100vw - 16px);
+  min-width: 220px;
+  overflow: auto;
+  padding: 6px;
+  position: absolute;
+  width: min(320px, calc(100vw - 16px));
+  z-index: 20;
+}
+
+.folio-slash-menu__item {
+  color: var(--folio-color-text);
+  justify-content: flex-start;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.folio-callout {
+  background: var(--folio-color-callout-bg);
+  border-left: 3px solid var(--folio-color-callout-border);
+  border-radius: var(--folio-radius-md);
+  margin: 0.75rem 0;
+  padding: 0.75rem 0.9rem;
+}
+
+.folio-bookmark {
+  border: 1px solid var(--folio-color-border);
+  border-radius: var(--folio-radius-md);
+  color: inherit;
+  display: block;
+  margin: 0.75rem 0;
+  padding: 0.85rem;
+  text-decoration: none;
+}
+
+.folio-bookmark a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.folio-bookmark:hover {
+  background: var(--folio-color-hover);
+}
+
+.folio-mention {
+  background: var(--folio-color-hover);
+  border-radius: var(--folio-radius-sm);
+  color: var(--folio-color-text);
+  padding: 0.05rem 0.25rem;
+}
+
+.folio-toc {
+  border: 1px solid var(--folio-color-border);
+  border-radius: var(--folio-radius-md);
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+}
+
+.folio-toc__title {
+  color: var(--folio-color-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.folio-toc__item {
+  color: var(--folio-color-muted);
+  text-decoration: none;
+}
+
+.folio-toc__item:hover {
+  color: var(--folio-color-text);
+}
+
+.folio-toc__item--level-2 {
+  padding-left: 1rem;
+}
+
+.folio-toc__item--level-3 {
+  padding-left: 2rem;
 }
