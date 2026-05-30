@@ -52,6 +52,28 @@
   padding-left: 1.5rem;
 }
 
+.folio-reader ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.folio-reader li[data-type="taskItem"] {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+}
+
+.folio-reader li[data-type="taskItem"] > input {
+  flex: 0 0 auto;
+  margin-top: 0.35rem;
+}
+
+.folio-reader li[data-type="taskItem"] > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .folio-reader blockquote {
   border-left: 3px solid var(--folio-color-border);
   color: var(--folio-color-muted);
@@ -111,6 +133,42 @@
   color: var(--folio-color-muted);
   font-size: 0.875rem;
   margin-top: 0.35rem;
+}
+
+.folio-reader table {
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.folio-reader th,
+.folio-reader td {
+  border: 1px solid var(--folio-color-border);
+  padding: 0.35rem 0.5rem;
+  vertical-align: top;
+}
+
+.folio-reader th {
+  background: var(--folio-color-surface);
+  font-weight: 600;
+}
+
+.folio-reader details {
+  border-radius: var(--folio-radius-md);
+  margin: 0.75rem 0;
+  padding: 0.2rem 0.35rem;
+}
+
+.folio-reader summary {
+  border-radius: var(--folio-radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.2rem 0.35rem;
+}
+
+.folio-reader summary:hover {
+  background: var(--folio-color-hover);
 }
 
 .folio-callout {

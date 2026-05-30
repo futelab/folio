@@ -70,4 +70,103 @@ describe("FolioReader", () => {
     expect(screen.getByAltText("Unsafe image")).not.toHaveAttribute("src");
     expect(screen.getByAltText("Safe image")).toHaveAttribute("src", "/images/photo.png");
   });
+
+  it("renders default editor nodes and marks without dropping content", () => {
+    const richDocument: FolioDocument = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Struck", marks: [{ type: "strike" }] },
+            { type: "hardBreak" },
+            {
+              type: "text",
+              text: "Highlighted",
+              marks: [{ type: "highlight", attrs: { color: "#fff3bf" } }],
+            },
+            {
+              type: "text",
+              text: "Underlined",
+              marks: [{ type: "underline" }],
+            },
+          ],
+        },
+        {
+          type: "taskList",
+          content: [
+            {
+              type: "taskItem",
+              attrs: { checked: true },
+              content: [
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "Done task" }],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: "table",
+          content: [
+            {
+              type: "tableRow",
+              content: [
+                {
+                  type: "tableHeader",
+                  content: [
+                    {
+                      type: "paragraph",
+                      content: [{ type: "text", text: "Column" }],
+                    },
+                  ],
+                },
+                {
+                  type: "tableCell",
+                  content: [
+                    {
+                      type: "paragraph",
+                      content: [{ type: "text", text: "Value" }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: "details",
+          attrs: { open: true },
+          content: [
+            {
+              type: "detailsSummary",
+              content: [{ type: "text", text: "Toggle title" }],
+            },
+            {
+              type: "detailsContent",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "Toggle body" }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const { container } = render(<FolioReader value={richDocument} />);
+
+    expect(screen.getByText("Struck").tagName.toLowerCase()).toBe("del");
+    expect(container.querySelector("br")).toBeInTheDocument();
+    expect(screen.getByText("Highlighted").tagName.toLowerCase()).toBe("mark");
+    expect(screen.getByText("Underlined").tagName.toLowerCase()).toBe("u");
+    expect(screen.getByRole("checkbox", { name: "Done task" })).toBeChecked();
+    expect(screen.getByRole("columnheader", { name: "Column" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Value" })).toBeInTheDocument();
+    expect(screen.getByText("Toggle title").closest("summary")).toBeInTheDocument();
+    expect(screen.getByText("Toggle body")).toBeInTheDocument();
+  });
 });
