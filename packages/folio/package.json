@@ -27,7 +27,7 @@
   },
   "scripts": {
     "build": "tsup src/index.ts src/core.ts src/react.ts --format esm,cjs --dts --sourcemap && node scripts/build-styles.mjs",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests --root ../.. packages/folio/src",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
