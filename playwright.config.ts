@@ -9,7 +9,8 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "pnpm --filter @futelab/folio-docs dev -- --host 127.0.0.1 --port 6006",
+    command:
+      "pnpm --filter @futelab/folio build && pnpm --filter @futelab/folio-docs dev --host 127.0.0.1 --port 6006",
     url: "http://127.0.0.1:6006",
     reuseExistingServer: true,
     timeout: 120000,
