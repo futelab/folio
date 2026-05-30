@@ -169,4 +169,34 @@ describe("FolioReader", () => {
     expect(screen.getByText("Toggle title").closest("summary")).toBeInTheDocument();
     expect(screen.getByText("Toggle body")).toBeInTheDocument();
   });
+
+  it("renders details closed when open state was not persisted", () => {
+    const document: FolioDocument = {
+      type: "doc",
+      content: [
+        {
+          type: "details",
+          content: [
+            {
+              type: "detailsSummary",
+              content: [{ type: "text", text: "Collapsed title" }],
+            },
+            {
+              type: "detailsContent",
+              content: [
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: "Collapsed body" }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    render(<FolioReader value={document} />);
+
+    expect(screen.getByText("Collapsed title").closest("details")).not.toHaveAttribute("open");
+  });
 });

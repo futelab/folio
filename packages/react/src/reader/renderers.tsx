@@ -290,7 +290,7 @@ function renderNode(node: JSONContent, context: RenderContext, path: string): Re
       return <td key={path}>{renderChildren(node.content, context, path)}</td>;
     case "details":
       return (
-        <details key={path} open={node.attrs?.open !== false}>
+        <details key={path} open={node.attrs?.open === true}>
           {renderChildren(node.content, context, path)}
         </details>
       );
