@@ -2,6 +2,8 @@ import type { Editor, JSONContent } from "@tiptap/core";
 import type { CSSProperties, Context, ReactElement, ReactNode } from "react";
 import {
   BlockControls as InternalBlockControls,
+  BlockInteractionLayer as InternalBlockInteractionLayer,
+  BlockSideControls as InternalBlockSideControls,
   BubbleToolbar as InternalBubbleToolbar,
   FolioDragHandle as InternalFolioDragHandle,
   FolioEditor as InternalFolioEditor,
@@ -28,6 +30,29 @@ export interface BlockControlsProps {
 export const BlockControls = InternalBlockControls as (
   props: BlockControlsProps,
 ) => ReactElement;
+
+export interface BlockInteractionLayerProps {
+  activeBlock: HTMLElement | null;
+  editorRoot: HTMLElement | null;
+  className?: string;
+  sideControlsClassName?: string;
+  onOpenBlockMenu: () => void;
+}
+
+export const BlockInteractionLayer = InternalBlockInteractionLayer as (
+  props: BlockInteractionLayerProps,
+) => ReactElement;
+
+export interface BlockSideControlsProps {
+  className?: string;
+  style?: CSSProperties;
+  visible: boolean;
+  onAddBlock: () => void;
+}
+
+export const BlockSideControls = InternalBlockSideControls as (
+  props: BlockSideControlsProps,
+) => ReactElement | null;
 
 export interface FolioDragHandleProps {
   editor: Editor | null;
