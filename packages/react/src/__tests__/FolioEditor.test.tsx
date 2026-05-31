@@ -3,6 +3,7 @@ import { EditorContent } from "@tiptap/react";
 import type { Editor } from "@tiptap/core";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createEmptyFolioDocument } from "@futelab/folio-core";
+import { createDefaultFolioCommands } from "@futelab/folio-core/browser";
 import type { FolioCommandContribution, FolioDocument } from "@futelab/folio-core";
 import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -87,6 +88,23 @@ describe("FolioEditor", () => {
 
     expect(screen.queryByRole("menuitem", { name: "Text" })).not.toBeInTheDocument();
     expect(action).toHaveBeenCalledWith({ editor: null });
+  });
+
+  it("provides grouped slash command display metadata", () => {
+    const commands = createDefaultFolioCommands();
+    const heading = commands.find((command) => command.name === "heading1");
+    const image = commands.find((command) => command.name === "image");
+
+    expect(heading).toMatchObject({
+      group: "Basic",
+      description: "Large section heading",
+      icon: "Heading1",
+    });
+    expect(image).toMatchObject({
+      group: "Media",
+      description: "Embed an image by URL",
+      icon: "Image",
+    });
   });
 
   it("moves focus through slash commands with menu keyboard navigation", () => {

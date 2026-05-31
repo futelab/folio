@@ -18,9 +18,31 @@ export interface FolioMarkContribution {
   label?: string;
 }
 
+export type FolioCommandGroup = "Basic" | "Lists" | "Media" | "Advanced";
+
+export type FolioCommandIcon =
+  | "Text"
+  | "Heading1"
+  | "Heading2"
+  | "Heading3"
+  | "List"
+  | "ListOrdered"
+  | "ListTodo"
+  | "Quote"
+  | "Code"
+  | "Minus"
+  | "Table"
+  | "Image"
+  | "Bookmark"
+  | "PanelTop"
+  | "ListTree";
+
 export interface FolioCommandContribution {
   name: string;
   label: string;
+  group?: FolioCommandGroup;
+  description?: string;
+  icon?: FolioCommandIcon;
   keywords?: string[];
   action: FolioCommandAction;
 }
