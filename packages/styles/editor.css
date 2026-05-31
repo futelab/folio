@@ -153,36 +153,43 @@
   padding-left: 0;
 }
 
-.folio-editor .ProseMirror li[data-type="taskItem"] {
+.folio-editor .ProseMirror li[data-checked] {
   align-items: flex-start;
   display: flex;
   gap: 0.5rem;
 }
 
-.folio-editor .ProseMirror li[data-type="taskItem"] > label {
+.folio-editor .ProseMirror li[data-checked] > label {
   flex: 0 0 auto;
   margin-top: 0.2rem;
 }
 
-.folio-editor .ProseMirror li[data-type="taskItem"] > div {
+.folio-editor .ProseMirror li[data-checked] > div {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.folio-editor .ProseMirror details {
+.folio-editor .ProseMirror li[data-checked] > div > p {
+  margin: 0;
+}
+
+.folio-editor .ProseMirror details,
+.folio-editor .ProseMirror [data-type="details"] {
   border-radius: var(--folio-radius-md);
   margin: 0.75rem 0;
   padding: 0.2rem 0.35rem;
 }
 
-.folio-editor .ProseMirror summary {
+.folio-editor .ProseMirror summary,
+.folio-editor .ProseMirror [data-type="details"] > button {
   border-radius: var(--folio-radius-sm);
   cursor: pointer;
   font-weight: 600;
   padding: 0.2rem 0.35rem;
 }
 
-.folio-editor .ProseMirror summary:hover {
+.folio-editor .ProseMirror summary:hover,
+.folio-editor .ProseMirror [data-type="details"] > button:hover {
   background: var(--folio-color-hover);
 }
 

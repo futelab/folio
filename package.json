@@ -4,6 +4,7 @@
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "build": "turbo run build",
+    "demo": "pnpm --filter @futelab/folio-demo dev --host 127.0.0.1 --port 55399",
     "dev": "turbo run dev --parallel",
     "lint": "turbo run lint",
     "test": "turbo run test",

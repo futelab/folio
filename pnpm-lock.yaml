@@ -57,6 +57,37 @@ importers:
         specifier: ^3.1.0
         version: 3.2.4(@types/node@22.19.19)(happy-dom@20.9.0)(jsdom@26.1.0)
 
+  apps/demo:
+    dependencies:
+      '@futelab/folio':
+        specifier: workspace:*
+        version: link:../../packages/folio
+      lucide-react:
+        specifier: ^1.17.0
+        version: 1.17.0(react@19.2.6)
+      react:
+        specifier: ^19.2.6
+        version: 19.2.6
+      react-dom:
+        specifier: ^19.2.6
+        version: 19.2.6(react@19.2.6)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.2.15
+      '@types/react-dom':
+        specifier: ^19.1.0
+        version: 19.2.3(@types/react@19.2.15)
+      '@vitejs/plugin-react':
+        specifier: ^4.5.0
+        version: 4.7.0(vite@6.4.2(@types/node@22.19.19))
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.3
+      vite:
+        specifier: ^6.3.0
+        version: 6.4.2(@types/node@22.19.19)
+
   apps/docs:
     dependencies:
       '@futelab/folio':
