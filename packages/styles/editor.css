@@ -243,6 +243,7 @@
 .folio-bubble-toolbar button:hover,
 .folio-editor__bubble-toolbar button:hover,
 .folio-slash-menu__item:hover,
+.folio-slash-menu__item[data-active="true"],
 .folio-drag-handle:hover,
 .folio-drag-handle__button:hover {
   background: var(--folio-color-hover);

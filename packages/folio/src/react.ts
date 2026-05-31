@@ -1,5 +1,5 @@
 import type { Editor, JSONContent } from "@tiptap/core";
-import type { Context, ReactElement, ReactNode } from "react";
+import type { CSSProperties, Context, ReactElement, ReactNode } from "react";
 import {
   BlockControls as InternalBlockControls,
   BubbleToolbar as InternalBubbleToolbar,
@@ -105,6 +105,11 @@ export interface SlashMenuProps {
   query?: string;
   commands?: FolioCommandContribution[];
   className?: string;
+  style?: CSSProperties;
+  activeIndex?: number;
+  onActiveIndexChange?: (index: number) => void;
+  onCommandSelect?: (command: FolioCommandContribution) => void;
+  onRequestClose?: () => void;
 }
 
 export const SlashMenu = InternalSlashMenu as (

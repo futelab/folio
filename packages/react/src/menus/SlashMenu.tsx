@@ -1,33 +1,21 @@
 import { useMemo } from "react";
+import type { CSSProperties } from "react";
 import type { KeyboardEvent } from "react";
 import type { Editor } from "@tiptap/core";
 import { createDefaultFolioCommands } from "@futelab/folio-core/browser";
 import type { FolioCommandContribution } from "@futelab/folio-core/browser";
+import { getSlashMenuCommands } from "./slashMenuUtils";
 
 export interface SlashMenuProps {
   editor: Editor | null;
   query?: string;
   commands?: FolioCommandContribution[];
   className?: string;
-}
-
-function normalizeSlashQuery(query: string): string {
-  return query.replace(/^\//, "").trim().toLowerCase();
-}
-
-function commandMatchesQuery(
-  command: FolioCommandContribution,
-  query: string,
-): boolean {
-  if (!query) return true;
-
-  const searchableText = [
-    command.label,
-    command.name,
-    ...(command.keywords ?? []),
-  ].map((value) => value.toLowerCase());
-
-  return searchableText.some((value) => value.includes(query));
+  style?: CSSProperties;
+  activeIndex?: number;
+  onActiveIndexChange?: (index: number) => void;
+  onCommandSelect?: (command: FolioCommandContribution) => void;
+  onRequestClose?: () => void;
 }
 
 function getMenuItems(menu: HTMLElement): HTMLButtonElement[] {
@@ -51,7 +39,10 @@ function focusMenuItem(
   items[targetIndex]?.focus();
 }
 
-function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+function handleMenuKeyDown(
+  event: KeyboardEvent<HTMLDivElement>,
+  onRequestClose?: () => void,
+): void {
   const menu = event.currentTarget;
 
   switch (event.key) {
@@ -77,6 +68,7 @@ function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
       break;
     case "Escape":
       event.preventDefault();
+      onRequestClose?.();
       if (event.target instanceof HTMLElement) {
         event.target.blur();
       }
@@ -89,37 +81,53 @@ export function SlashMenu({
   query,
   commands,
   className,
+  style,
+  activeIndex,
+  onActiveIndexChange,
+  onCommandSelect,
+  onRequestClose,
 }: SlashMenuProps) {
   const defaultCommands = useMemo(() => createDefaultFolioCommands(), []);
   const availableCommands = commands ?? defaultCommands;
 
-  if (!query?.startsWith("/")) {
-    return null;
-  }
+  const filteredCommands = getSlashMenuCommands(availableCommands, query);
 
-  const normalizedQuery = normalizeSlashQuery(query);
-  const filteredCommands = availableCommands.filter((command) =>
-    commandMatchesQuery(command, normalizedQuery),
-  );
+  if (!filteredCommands.length) return null;
 
   return (
     <div
       aria-label="Slash commands"
       className={className ?? "folio-slash-menu"}
-      onKeyDown={handleMenuKeyDown}
+      onKeyDown={(event) => handleMenuKeyDown(event, onRequestClose)}
       role="menu"
+      style={style}
     >
-      {filteredCommands.map((command) => (
-        <button
-          className="folio-slash-menu__item"
-          key={command.name}
-          onClick={() => command.action({ editor })}
-          role="menuitem"
-          type="button"
-        >
-          {command.label}
-        </button>
-      ))}
+      {filteredCommands.map((command, index) => {
+        const isActive = index === activeIndex;
+
+        return (
+          <button
+            aria-selected={isActive ? "true" : undefined}
+            className="folio-slash-menu__item"
+            data-active={isActive ? "true" : undefined}
+            key={command.name}
+            onClick={() => {
+              if (onCommandSelect) {
+                onCommandSelect(command);
+                return;
+              }
+
+              command.action({ editor });
+            }}
+            onFocus={() => onActiveIndexChange?.(index)}
+            onMouseEnter={() => onActiveIndexChange?.(index)}
+            role="menuitem"
+            type="button"
+          >
+            {command.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
