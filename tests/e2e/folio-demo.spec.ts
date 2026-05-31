@@ -10,11 +10,26 @@ test("demo presents a complete Notion-like editing workspace", async ({ page }) 
   await expect(page.getByTestId("folio-demo")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Pages" })).toBeVisible();
   await expect(page.getByRole("main", { name: "Editor" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Preview" })).toHaveCount(0);
+  await page.getByTitle("Preview").click();
   await expect(page.getByRole("complementary", { name: "Preview" })).toBeVisible();
   await expect(page.getByTestId("folio-editor")).toBeVisible();
   await expect(page.getByTestId("folio-reader")).toBeVisible();
   await expect(page.getByRole("menu", { name: "Slash commands" })).toHaveCount(0);
   await expect(page.getByText("Saved locally")).toBeVisible();
+});
+
+test("blank page uses a document-first surface with preview collapsed", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "New page" }).click();
+
+  await expect(page.getByRole("complementary", { name: "Preview" })).toHaveCount(0);
+  await expect(page.getByPlaceholder("Untitled")).toBeVisible();
+  await expect(page.getByText("Type '/' for commands")).toBeVisible();
+
+  const editor = page.getByTestId("folio-editor");
+  await expect(editor).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 });
 
 test("slash commands open from editor input and filter typed query", async ({ page }) => {

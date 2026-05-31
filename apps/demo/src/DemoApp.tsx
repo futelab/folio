@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { FolioDocument } from "@futelab/folio/core";
 import { FolioEditor, FolioReader } from "@futelab/folio/react";
 import {
-  BookOpen,
   FileText,
   Folder,
   PanelRightClose,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 
 const STORAGE_KEY = "futelab.folio.demo.pages";
+const EDITOR_PLACEHOLDER = "Type '/' for commands";
 
 interface DemoPage {
   id: string;
@@ -270,11 +270,21 @@ function updatePageTitle(
   );
 }
 
+function isDocumentBlank(document: FolioDocument): boolean {
+  const blocks = document.content ?? [];
+
+  return (
+    blocks.length === 1 &&
+    blocks[0]?.type === "paragraph" &&
+    (blocks[0].content?.length ?? 0) === 0
+  );
+}
+
 export function DemoApp() {
   const [pages, setPages] = useState<DemoPage[]>(loadPages);
   const [selectedPageId, setSelectedPageId] = useState(pages[0]?.id ?? starterPages[0].id);
   const [query, setQuery] = useState("");
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
 
   const selectedPage = useMemo(
     () => pages.find((page) => page.id === selectedPageId) ?? pages[0],
@@ -388,32 +398,31 @@ export function DemoApp() {
                 updatePageTitle(currentPages, selectedPage.id, event.target.value),
               )
             }
+            placeholder="Untitled"
             value={selectedPage.title}
           />
-          <FolioEditor
-            classNames={{ slashMenu: "folio-demo__command-menu" }}
-            key={selectedPage.id}
-            onChange={(document) =>
-              setPages((currentPages) =>
-                updatePageDocument(currentPages, selectedPage.id, document),
-              )
-            }
-            placeholder="Type / for blocks"
-            value={selectedPage.document}
-          />
+          <div className="folio-demo__editor-frame">
+            {isDocumentBlank(selectedPage.document) ? (
+              <span className="folio-demo__editor-placeholder">{EDITOR_PLACEHOLDER}</span>
+            ) : null}
+            <FolioEditor
+              classNames={{ slashMenu: "folio-demo__command-menu" }}
+              key={selectedPage.id}
+              onChange={(document) =>
+                setPages((currentPages) =>
+                  updatePageDocument(currentPages, selectedPage.id, document),
+                )
+              }
+              placeholder={EDITOR_PLACEHOLDER}
+              value={selectedPage.document}
+            />
+          </div>
         </section>
       </main>
 
       {showPreview ? (
         <aside aria-label="Preview" className="folio-demo__preview">
-          <header className="folio-demo__preview-header">
-            <BookOpen aria-hidden size={16} />
-            <span>Preview</span>
-          </header>
-          <div className="folio-demo__preview-document">
-            <h1>{selectedPage.title}</h1>
-            <FolioReader className="folio-demo__preview-reader" value={selectedPage.document} />
-          </div>
+          <FolioReader value={selectedPage.document} />
         </aside>
       ) : null}
     </div>
