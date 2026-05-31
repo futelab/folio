@@ -10,7 +10,6 @@ import {
   Plus,
   RotateCcw,
   Search,
-  Sparkles,
 } from "lucide-react";
 
 const STORAGE_KEY = "futelab.folio.demo.pages";
@@ -56,7 +55,7 @@ const starterPages: DemoPage[] = [
           content: [
             {
               type: "paragraph",
-              content: [{ type: "text", text: "Slash commands and block controls stay visible in this demo so the interaction surface is easy to inspect." }],
+              content: [{ type: "text", text: "Type / in the editor to open block commands while keeping the writing surface clear." }],
             },
           ],
         },
@@ -276,7 +275,6 @@ export function DemoApp() {
   const [selectedPageId, setSelectedPageId] = useState(pages[0]?.id ?? starterPages[0].id);
   const [query, setQuery] = useState("");
   const [showPreview, setShowPreview] = useState(true);
-  const [showCommands, setShowCommands] = useState(true);
 
   const selectedPage = useMemo(
     () => pages.find((page) => page.id === selectedPageId) ?? pages[0],
@@ -299,13 +297,11 @@ export function DemoApp() {
 
     setPages((currentPages) => [page, ...currentPages]);
     setSelectedPageId(page.id);
-    setShowCommands(true);
   }
 
   function handleReset() {
     setPages(starterPages);
     setSelectedPageId(starterPages[0].id);
-    setShowCommands(true);
   }
 
   if (!selectedPage) return null;
@@ -366,14 +362,6 @@ export function DemoApp() {
           </div>
           <div className="folio-demo__toolbar">
             <button
-              aria-pressed={showCommands}
-              onClick={() => setShowCommands((value) => !value)}
-              title="Slash commands"
-              type="button"
-            >
-              <Sparkles aria-hidden size={16} />
-            </button>
-            <button
               aria-pressed={showPreview}
               onClick={() => setShowPreview((value) => !value)}
               title="Preview"
@@ -404,7 +392,6 @@ export function DemoApp() {
           />
           <FolioEditor
             classNames={{ slashMenu: "folio-demo__command-menu" }}
-            initialSlashQuery={showCommands ? "/" : undefined}
             key={selectedPage.id}
             onChange={(document) =>
               setPages((currentPages) =>

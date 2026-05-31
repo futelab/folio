@@ -227,11 +227,6 @@ input {
   min-height: 42vh;
 }
 
-.folio-demo__document .folio-demo__command-menu {
-  left: 0;
-  top: 2.65rem;
-}
-
 .folio-demo__preview {
   background: #ffffff;
   border-left: 1px solid #e4ded4;
