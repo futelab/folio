@@ -207,12 +207,12 @@ describe("FolioEditor", () => {
     expect(alpha).not.toHaveFocus();
   });
 
-  it("renders the text formatting bubble toolbar", () => {
-    render(<FolioEditor value={createEmptyFolioDocument()} onChange={vi.fn()} />);
+  it("hides the text formatting toolbar until text is selected", () => {
+    render(<FolioEditor value={documentWithText("Selectable")} onChange={vi.fn()} />);
 
     expect(
-      screen.getByRole("toolbar", { name: "Text formatting" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("toolbar", { name: "Text formatting" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not render contextual block controls before a block is active", () => {
