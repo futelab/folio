@@ -13,6 +13,7 @@ import {
 
 const STORAGE_KEY = "futelab.folio.demo.pages";
 const EDITOR_PLACEHOLDER = "Type '/' for commands";
+const UNTITLED_PAGE_LABEL = "Untitled";
 
 interface DemoPage {
   id: string;
@@ -214,7 +215,7 @@ function createBlankPage(): DemoPage {
 
   return {
     id: `page-${createdAt}`,
-    title: "Untitled",
+    title: "",
     icon: "□",
     updatedAt: createdAt,
     document: {
@@ -227,6 +228,10 @@ function createBlankPage(): DemoPage {
       ],
     },
   };
+}
+
+function getDisplayTitle(title: string): string {
+  return title.trim() || UNTITLED_PAGE_LABEL;
 }
 
 function loadPages(): DemoPage[] {
@@ -293,7 +298,9 @@ export function DemoApp() {
   const filteredPages = useMemo(
     () =>
       pages.filter((page) =>
-        page.title.toLowerCase().includes(query.trim().toLowerCase()),
+        getDisplayTitle(page.title)
+          .toLowerCase()
+          .includes(query.trim().toLowerCase()),
       ),
     [pages, query],
   );
@@ -349,7 +356,7 @@ export function DemoApp() {
               type="button"
             >
               <span>{page.icon}</span>
-              <span>{page.title}</span>
+              <span>{getDisplayTitle(page.title)}</span>
             </button>
           ))}
         </div>
@@ -364,7 +371,7 @@ export function DemoApp() {
         <header className="folio-demo__topbar">
           <div className="folio-demo__crumb">
             <FileText aria-hidden size={16} />
-            <span>{selectedPage.title}</span>
+            <span>{getDisplayTitle(selectedPage.title)}</span>
           </div>
           <div className="folio-demo__status">
             <span>Saved locally</span>
@@ -398,7 +405,7 @@ export function DemoApp() {
                 updatePageTitle(currentPages, selectedPage.id, event.target.value),
               )
             }
-            placeholder="Untitled"
+            placeholder={UNTITLED_PAGE_LABEL}
             value={selectedPage.title}
           />
           <div className="folio-demo__editor-frame">

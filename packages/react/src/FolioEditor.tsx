@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import type { FocusEvent } from "react";
 import type { KeyboardEvent } from "react";
 import type { MouseEvent } from "react";
 import type { Editor } from "@tiptap/core";
@@ -151,9 +152,11 @@ export function FolioEditor(props: FolioEditorProps) {
   const [hoveredBlock, setHoveredBlock] = useState<HTMLElement | null>(null);
   const [focusedBlock, setFocusedBlock] = useState<HTMLElement | null>(null);
   const [editorHasFocus, setEditorHasFocus] = useState(false);
+  const [rootHasFocus, setRootHasFocus] = useState(false);
   const [hasTextSelection, setHasTextSelection] = useState(false);
   const activeBlock =
-    hoveredBlock ?? (editorHasFocus || blockMenuOpen ? focusedBlock : null);
+    hoveredBlock ??
+    (editorHasFocus || rootHasFocus || blockMenuOpen ? focusedBlock : null);
   const activeMenuQuery = slashQuery ?? (blockMenuOpen ? "/" : undefined);
   const filteredSlashCommands = useMemo(
     () => getSlashMenuCommands(slashCommands, activeMenuQuery),
@@ -365,25 +368,44 @@ export function FolioEditor(props: FolioEditorProps) {
     setHoveredBlock(null);
   }, []);
 
+  const handleFocusCapture = useCallback(() => {
+    setRootHasFocus(true);
+  }, []);
+
+  const handleBlurCapture = useCallback((event: FocusEvent<HTMLDivElement>) => {
+    const nextFocusedElement = event.relatedTarget;
+
+    if (
+      nextFocusedElement instanceof Node &&
+      event.currentTarget.contains(nextFocusedElement)
+    ) {
+      return;
+    }
+
+    setRootHasFocus(false);
+  }, []);
+
   return (
     <FolioEditorContext.Provider value={{ editor }}>
       <div
         ref={rootRef}
         className={classNames("folio-editor", props.className, props.classNames?.root)}
         data-testid="folio-editor"
+        onBlurCapture={handleBlurCapture}
+        onFocusCapture={handleFocusCapture}
         onKeyDownCapture={handleKeyDownCapture}
         onMouseLeave={handleMouseLeave}
         onMouseMove={handleMouseMove}
       >
+        <EditorContent
+          className={classNames("folio-editor__content", props.classNames?.content)}
+          editor={editor}
+        />
         <BlockInteractionLayer
           activeBlock={activeBlock}
           editorRoot={rootRef.current}
           onOpenBlockMenu={handleOpenBlockMenu}
           sideControlsClassName={props.classNames?.blockControls}
-        />
-        <EditorContent
-          className={classNames("folio-editor__content", props.classNames?.content)}
-          editor={editor}
         />
         {hasTextSelection ? (
           <BubbleToolbar
