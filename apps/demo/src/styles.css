@@ -1,0 +1,308 @@
+:root {
+  color: #2f2d29;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.folio-demo {
+  background: #fbfaf7;
+  color: #2f2d29;
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr) minmax(340px, 29vw);
+  min-height: 100vh;
+}
+
+.folio-demo__sidebar {
+  background: #f4f1ec;
+  border-right: 1px solid #e4ded4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 100vh;
+  padding: 0.9rem;
+}
+
+.folio-demo__brand {
+  align-items: center;
+  display: flex;
+  font-size: 0.94rem;
+  font-weight: 650;
+  gap: 0.55rem;
+  min-height: 2rem;
+}
+
+.folio-demo__brand-mark {
+  align-items: center;
+  background: #2f2d29;
+  border-radius: 0.35rem;
+  color: #fff;
+  display: inline-flex;
+  height: 1.45rem;
+  justify-content: center;
+  width: 1.45rem;
+}
+
+.folio-demo__search {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e4ded4;
+  border-radius: 0.45rem;
+  display: flex;
+  gap: 0.45rem;
+  min-height: 2.05rem;
+  padding: 0 0.6rem;
+}
+
+.folio-demo__search svg {
+  color: #82796f;
+  flex: 0 0 auto;
+}
+
+.folio-demo__search input,
+.folio-demo__title {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  min-width: 0;
+  outline: 0;
+  width: 100%;
+}
+
+.folio-demo__section-label {
+  align-items: center;
+  color: #7b7369;
+  display: flex;
+  font-size: 0.78rem;
+  font-weight: 650;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+  text-transform: uppercase;
+}
+
+.folio-demo__page-list {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.folio-demo__page-button,
+.folio-demo__sidebar-action {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0.4rem;
+  color: #3d3933;
+  cursor: pointer;
+  display: flex;
+  gap: 0.5rem;
+  min-height: 2rem;
+  overflow: hidden;
+  padding: 0 0.45rem;
+  text-align: left;
+}
+
+.folio-demo__page-button span:last-child,
+.folio-demo__sidebar-action span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folio-demo__page-button:hover,
+.folio-demo__sidebar-action:hover,
+.folio-demo__page-button[aria-current="page"] {
+  background: #e9e3da;
+}
+
+.folio-demo__sidebar-action {
+  color: #4f4840;
+  margin-top: auto;
+}
+
+.folio-demo__editor-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100vh;
+  min-width: 0;
+}
+
+.folio-demo__topbar {
+  align-items: center;
+  border-bottom: 1px solid #ebe6de;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  min-height: 3.25rem;
+  padding: 0 1rem;
+}
+
+.folio-demo__crumb,
+.folio-demo__status,
+.folio-demo__toolbar,
+.folio-demo__preview-header {
+  align-items: center;
+  display: flex;
+}
+
+.folio-demo__crumb {
+  color: #534d45;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.folio-demo__crumb span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folio-demo__status {
+  color: #7b7369;
+  font-size: 0.82rem;
+  gap: 0.6rem;
+  white-space: nowrap;
+}
+
+.folio-demo__toolbar {
+  gap: 0.25rem;
+}
+
+.folio-demo__toolbar button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0.35rem;
+  color: #5c554d;
+  cursor: pointer;
+  display: inline-flex;
+  height: 1.95rem;
+  justify-content: center;
+  width: 1.95rem;
+}
+
+.folio-demo__toolbar button:hover,
+.folio-demo__toolbar button[aria-pressed="true"] {
+  background: #eee8df;
+}
+
+.folio-demo__document {
+  margin: 0 auto;
+  max-width: 860px;
+  min-width: 0;
+  padding: clamp(1.5rem, 4vw, 3.5rem) clamp(1rem, 4vw, 3rem) 5rem;
+  width: 100%;
+}
+
+.folio-demo__title {
+  display: block;
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  font-weight: 720;
+  line-height: 1.04;
+  margin: 0 0 1.15rem;
+}
+
+.folio-demo__document .folio-editor {
+  min-height: 58vh;
+}
+
+.folio-demo__document .folio-editor__content {
+  min-height: 42vh;
+}
+
+.folio-demo__document .folio-demo__command-menu {
+  left: 0;
+  top: 2.65rem;
+}
+
+.folio-demo__preview {
+  background: #ffffff;
+  border-left: 1px solid #e4ded4;
+  min-height: 100vh;
+  min-width: 0;
+  overflow: auto;
+}
+
+.folio-demo__preview-header {
+  background: #ffffff;
+  border-bottom: 1px solid #ebe6de;
+  color: #5b544b;
+  gap: 0.45rem;
+  min-height: 3.25rem;
+  padding: 0 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.folio-demo__preview-document {
+  padding: 1.25rem;
+}
+
+.folio-demo__preview-document h1 {
+  font-size: 1.95rem;
+  line-height: 1.12;
+  margin: 0 0 0.9rem;
+}
+
+.folio-demo__preview .folio-reader {
+  font-size: 0.94rem;
+  padding: 0;
+}
+
+@media (max-width: 1080px) {
+  .folio-demo {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .folio-demo__preview {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .folio-demo {
+    grid-template-columns: 1fr;
+  }
+
+  .folio-demo__sidebar {
+    border-bottom: 1px solid #e4ded4;
+    border-right: 0;
+    min-height: auto;
+  }
+
+  .folio-demo__page-list {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(10rem, 1fr);
+    overflow-x: auto;
+  }
+
+  .folio-demo__sidebar-action {
+    margin-top: 0;
+  }
+
+  .folio-demo__topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .folio-demo__status {
+    display: none;
+  }
+}
