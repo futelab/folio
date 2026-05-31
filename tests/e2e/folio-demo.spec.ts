@@ -129,3 +129,50 @@ test("slash menu keeps roving focus keyboard navigation when menu items are focu
 
   await expect(menu).toHaveCount(0);
 });
+
+test("block side controls appear on block focus or hover and open the command menu", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  await expect(page.getByRole("button", { name: "Add block below" })).toHaveCount(0);
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("A block with controls");
+
+  await expect(page.getByRole("button", { name: "Add block below" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Drag block" })).toBeVisible();
+
+  await editor.getByText("A block with controls").hover();
+
+  await expect(page.getByRole("button", { name: "Add block below" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Drag block" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Add block below" }).click();
+
+  await expect(page.getByRole("menu", { name: "Slash commands" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /Text/ })).toBeVisible();
+});
+
+test("block side controls target the hovered block when opening commands", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("First block");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Second block");
+
+  await editor.getByText("First block").click();
+  await editor.getByText("Second block").hover();
+  await page.getByRole("button", { name: "Add block below" }).click();
+  await page.getByRole("menuitem", { name: "Heading 1" }).click();
+
+  await expect(editor.locator("h1")).toHaveText("Second block");
+  await expect(editor.locator("p", { hasText: "First block" })).toBeVisible();
+});

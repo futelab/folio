@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { KeyboardEvent } from "react";
+import type { MouseEvent } from "react";
 import type { Editor } from "@tiptap/core";
 import { EditorContent } from "@tiptap/react";
 import {
   createDefaultFolioCommands,
   type FolioCommandContribution,
 } from "@futelab/folio-core/browser";
-import { BlockControls } from "./blocks/BlockControls";
+import { BlockInteractionLayer } from "./blocks/BlockInteractionLayer";
+import {
+  findBlockElement,
+  focusBlockElement,
+  getCurrentBlockElement,
+} from "./blocks/blockDom";
 import { FolioEditorContext } from "./context";
 import { BubbleToolbar } from "./menus/BubbleToolbar";
 import { SlashMenu } from "./menus/SlashMenu";
@@ -40,6 +46,13 @@ function isSlashMenuEventTarget(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement &&
     Boolean(target.closest('[role="menu"][aria-label="Slash commands"]'))
+  );
+}
+
+function isBlockSideControlsEventTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    Boolean(target.closest(".folio-block-side-controls"))
   );
 }
 
@@ -115,9 +128,16 @@ export function FolioEditor(props: FolioEditorProps) {
   const [slashQuery, setSlashQuery] = useState(props.initialSlashQuery);
   const [slashMenuStyle, setSlashMenuStyle] = useState<CSSProperties>();
   const [activeSlashCommandIndex, setActiveSlashCommandIndex] = useState(0);
+  const [blockMenuOpen, setBlockMenuOpen] = useState(false);
+  const [hoveredBlock, setHoveredBlock] = useState<HTMLElement | null>(null);
+  const [focusedBlock, setFocusedBlock] = useState<HTMLElement | null>(null);
+  const [editorHasFocus, setEditorHasFocus] = useState(false);
+  const activeBlock =
+    hoveredBlock ?? (editorHasFocus || blockMenuOpen ? focusedBlock : null);
+  const activeMenuQuery = slashQuery ?? (blockMenuOpen ? "/" : undefined);
   const filteredSlashCommands = useMemo(
-    () => getSlashMenuCommands(slashCommands, slashQuery),
-    [slashCommands, slashQuery],
+    () => getSlashMenuCommands(slashCommands, activeMenuQuery),
+    [activeMenuQuery, slashCommands],
   );
   const displayedSlashCommands = useMemo(
     () => getSlashMenuDisplayCommands(filteredSlashCommands),
@@ -131,6 +151,7 @@ export function FolioEditor(props: FolioEditorProps) {
   const closeSlashMenu = useCallback(() => {
     setSlashQuery(undefined);
     setSlashMenuStyle(undefined);
+    setBlockMenuOpen(false);
     setActiveSlashCommandIndex(0);
   }, []);
 
@@ -141,23 +162,46 @@ export function FolioEditor(props: FolioEditorProps) {
       const nextQuery = getActiveSlashQuery(editor);
 
       setSlashQuery(nextQuery);
-      setSlashMenuStyle(
-        nextQuery ? getSlashMenuPosition(editor, rootRef.current) : undefined,
-      );
+      if (nextQuery) {
+        setSlashMenuStyle(getSlashMenuPosition(editor, rootRef.current));
+        setBlockMenuOpen(false);
+        setHoveredBlock(null);
+      }
       setActiveSlashCommandIndex(0);
     };
 
+    const syncFocusedBlock = () => {
+      setFocusedBlock(getCurrentBlockElement(editor));
+    };
+
+    const syncEditorFocus = () => {
+      setEditorHasFocus(editor.isFocused);
+    };
+
     editor.on("update", syncSlashQuery);
+    editor.on("update", syncFocusedBlock);
+    editor.on("focus", syncFocusedBlock);
+    editor.on("focus", syncEditorFocus);
+    editor.on("blur", syncEditorFocus);
     editor.on("selectionUpdate", syncSlashQuery);
+    editor.on("selectionUpdate", syncFocusedBlock);
+
+    syncFocusedBlock();
+    syncEditorFocus();
 
     return () => {
       editor.off("update", syncSlashQuery);
+      editor.off("update", syncFocusedBlock);
+      editor.off("focus", syncFocusedBlock);
+      editor.off("focus", syncEditorFocus);
+      editor.off("blur", syncEditorFocus);
       editor.off("selectionUpdate", syncSlashQuery);
+      editor.off("selectionUpdate", syncFocusedBlock);
     };
   }, [editor]);
 
   useEffect(() => {
-    if (!slashQuery) return undefined;
+    if (!activeMenuQuery) return undefined;
 
     const updateSlashMenuPosition = () => {
       setSlashMenuStyle(getSlashMenuPosition(editor, rootRef.current));
@@ -170,7 +214,7 @@ export function FolioEditor(props: FolioEditorProps) {
       window.removeEventListener("resize", updateSlashMenuPosition);
       window.removeEventListener("scroll", updateSlashMenuPosition, true);
     };
-  }, [editor, slashQuery]);
+  }, [activeMenuQuery, editor]);
 
   const runSlashCommand = useCallback(
     (command: FolioCommandContribution) => {
@@ -187,8 +231,10 @@ export function FolioEditor(props: FolioEditorProps) {
         return;
       }
 
+      setHoveredBlock(null);
+
       if (event.key === "Escape") {
-        if (slashQuery) {
+        if (activeMenuQuery) {
           event.preventDefault();
           event.stopPropagation();
           closeSlashMenu();
@@ -197,7 +243,7 @@ export function FolioEditor(props: FolioEditorProps) {
         return;
       }
 
-      if (!slashQuery || !displayedSlashCommands.length) {
+      if (!activeMenuQuery || !displayedSlashCommands.length) {
         return;
       }
 
@@ -250,7 +296,7 @@ export function FolioEditor(props: FolioEditorProps) {
       closeSlashMenu,
       displayedSlashCommands,
       runSlashCommand,
-      slashQuery,
+      activeMenuQuery,
     ],
   );
 
@@ -261,6 +307,33 @@ export function FolioEditor(props: FolioEditorProps) {
     [runSlashCommand],
   );
 
+  const handleOpenBlockMenu = useCallback(() => {
+    focusBlockElement(editor, activeBlock);
+    setFocusedBlock(activeBlock);
+    setBlockMenuOpen(true);
+    setSlashQuery(undefined);
+    setSlashMenuStyle(getSlashMenuPosition(editor, rootRef.current));
+    setActiveSlashCommandIndex(0);
+  }, [activeBlock, editor]);
+
+  const handleMouseMove = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (
+        isSlashMenuEventTarget(event.target) ||
+        isBlockSideControlsEventTarget(event.target)
+      ) {
+        return;
+      }
+
+      setHoveredBlock(findBlockElement(event.target, editor?.view.dom ?? null));
+    },
+    [editor],
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredBlock(null);
+  }, []);
+
   return (
     <FolioEditorContext.Provider value={{ editor }}>
       <div
@@ -268,13 +341,14 @@ export function FolioEditor(props: FolioEditorProps) {
         className={classNames("folio-editor", props.className, props.classNames?.root)}
         data-testid="folio-editor"
         onKeyDownCapture={handleKeyDownCapture}
+        onMouseLeave={handleMouseLeave}
+        onMouseMove={handleMouseMove}
       >
-        <BlockControls
-          className={classNames(
-            "folio-editor__block-controls",
-            props.classNames?.blockControls,
-          )}
-          editor={editor}
+        <BlockInteractionLayer
+          activeBlock={activeBlock}
+          editorRoot={rootRef.current}
+          onOpenBlockMenu={handleOpenBlockMenu}
+          sideControlsClassName={props.classNames?.blockControls}
         />
         <EditorContent
           className={classNames("folio-editor__content", props.classNames?.content)}
@@ -290,12 +364,12 @@ export function FolioEditor(props: FolioEditorProps) {
         <SlashMenu
           className={classNames("folio-editor__slash-menu", props.classNames?.slashMenu)}
           activeIndex={activeSlashCommandIndexForMenu}
-          commands={slashCommands}
+          commands={filteredSlashCommands}
           editor={editor}
           onActiveIndexChange={setActiveSlashCommandIndex}
           onCommandSelect={handleSlashCommandSelect}
           onRequestClose={closeSlashMenu}
-          query={slashQuery}
+          query={activeMenuQuery}
           style={slashMenuStyle}
         />
       </div>

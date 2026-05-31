@@ -7,6 +7,8 @@ import { createDefaultFolioCommands } from "@futelab/folio-core/browser";
 import type { FolioCommandContribution, FolioDocument } from "@futelab/folio-core";
 import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { BlockInteractionLayer } from "../blocks/BlockInteractionLayer";
+import { BlockSideControls } from "../blocks/BlockSideControls";
 import { FolioEditor } from "../FolioEditor";
 import { SlashMenu } from "../menus/SlashMenu";
 import { useFolioEditor } from "../useFolioEditor";
@@ -213,11 +215,62 @@ describe("FolioEditor", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders accessible block controls", () => {
+  it("does not render contextual block controls before a block is active", () => {
     render(<FolioEditor value={createEmptyFolioDocument()} onChange={vi.fn()} />);
 
-    expect(screen.getByRole("button", { name: "Insert block" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Insert block" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Add block below" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders accessible block side controls when visible", () => {
+    render(<BlockSideControls visible onAddBlock={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Add block below" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Drag block" })).toBeInTheDocument();
+  });
+
+  it("forwards block controls class names to contextual side controls", () => {
+    const editorRoot = document.createElement("div");
+    const activeBlock = document.createElement("p");
+    editorRoot.append(activeBlock);
+
+    vi.spyOn(editorRoot, "getBoundingClientRect").mockReturnValue({
+      bottom: 120,
+      height: 120,
+      left: 0,
+      right: 600,
+      top: 0,
+      width: 600,
+      x: 0,
+      y: 0,
+      toJSON: () => undefined,
+    });
+    vi.spyOn(activeBlock, "getBoundingClientRect").mockReturnValue({
+      bottom: 60,
+      height: 24,
+      left: 0,
+      right: 600,
+      top: 36,
+      width: 600,
+      x: 0,
+      y: 36,
+      toJSON: () => undefined,
+    });
+
+    render(
+      <BlockInteractionLayer
+        activeBlock={activeBlock}
+        editorRoot={editorRoot}
+        onOpenBlockMenu={vi.fn()}
+        sideControlsClassName="custom-block-controls"
+      />,
+    );
+
+    expect(screen.getByTestId("folio-block-side-controls")).toHaveClass(
+      "custom-block-controls",
+    );
   });
 
   it("preserves uncontrolled edits when editor extensions are recreated", async () => {
