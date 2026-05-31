@@ -107,6 +107,70 @@ describe("FolioEditor", () => {
     });
   });
 
+  it("renders slash commands with groups, icons, descriptions, and active state", () => {
+    const commands: FolioCommandContribution[] = [
+      {
+        name: "paragraph",
+        label: "Text",
+        group: "Basic",
+        description: "Start with plain text",
+        icon: "Text",
+        action: () => true,
+      },
+      {
+        name: "image",
+        label: "Image",
+        group: "Media",
+        description: "Embed an image by URL",
+        icon: "Image",
+        action: () => true,
+      },
+    ];
+
+    render(
+      <SlashMenu
+        activeIndex={1}
+        commands={commands}
+        editor={null}
+        query="/"
+      />,
+    );
+
+    expect(screen.getByText("Basic")).toBeInTheDocument();
+    expect(screen.getByText("Media")).toBeInTheDocument();
+    expect(screen.getByText("Start with plain text")).toBeInTheDocument();
+    expect(screen.getByText("Embed an image by URL")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Image/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("moves active slash command selection in grouped display order", () => {
+    render(
+      <FolioEditor
+        value={createEmptyFolioDocument()}
+        onChange={vi.fn()}
+        initialSlashQuery="/"
+      />,
+    );
+
+    const editorRoot = screen.getByTestId("folio-editor");
+
+    for (let index = 0; index < 7; index += 1) {
+      fireEvent.keyDown(editorRoot, { key: "ArrowDown" });
+    }
+
+    expect(screen.getByRole("menuitem", { name: "Image" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("menuitem", { name: "Quote" })).not.toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
   it("moves focus through slash commands with menu keyboard navigation", () => {
     const commands: FolioCommandContribution[] = [
       { name: "alpha", label: "Alpha", action: () => true },
