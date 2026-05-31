@@ -3,6 +3,8 @@ import type { CSSProperties } from "react";
 import type { KeyboardEvent } from "react";
 import type { MouseEvent } from "react";
 import type { Editor } from "@tiptap/core";
+import { NodeSelection } from "@tiptap/pm/state";
+import type { Selection } from "@tiptap/pm/state";
 import { EditorContent } from "@tiptap/react";
 import {
   createDefaultFolioCommands,
@@ -121,6 +123,23 @@ function getSlashMenuPosition(
   };
 }
 
+function isFormattingTextSelection(selection: Selection): boolean {
+  if (selection.empty || selection instanceof NodeSelection) return false;
+
+  let hasText = false;
+
+  selection.content().content.descendants((node) => {
+    if (node.isText && Boolean(node.text?.trim())) {
+      hasText = true;
+      return false;
+    }
+
+    return !hasText;
+  });
+
+  return hasText;
+}
+
 export function FolioEditor(props: FolioEditorProps) {
   const editor = useFolioEditor(props);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -132,6 +151,7 @@ export function FolioEditor(props: FolioEditorProps) {
   const [hoveredBlock, setHoveredBlock] = useState<HTMLElement | null>(null);
   const [focusedBlock, setFocusedBlock] = useState<HTMLElement | null>(null);
   const [editorHasFocus, setEditorHasFocus] = useState(false);
+  const [hasTextSelection, setHasTextSelection] = useState(false);
   const activeBlock =
     hoveredBlock ?? (editorHasFocus || blockMenuOpen ? focusedBlock : null);
   const activeMenuQuery = slashQuery ?? (blockMenuOpen ? "/" : undefined);
@@ -178,6 +198,12 @@ export function FolioEditor(props: FolioEditorProps) {
       setEditorHasFocus(editor.isFocused);
     };
 
+    const syncSelectionState = () => {
+      const selection = editor.state.selection;
+
+      setHasTextSelection(isFormattingTextSelection(selection));
+    };
+
     editor.on("update", syncSlashQuery);
     editor.on("update", syncFocusedBlock);
     editor.on("focus", syncFocusedBlock);
@@ -185,9 +211,12 @@ export function FolioEditor(props: FolioEditorProps) {
     editor.on("blur", syncEditorFocus);
     editor.on("selectionUpdate", syncSlashQuery);
     editor.on("selectionUpdate", syncFocusedBlock);
+    editor.on("selectionUpdate", syncSelectionState);
+    editor.on("transaction", syncSelectionState);
 
     syncFocusedBlock();
     syncEditorFocus();
+    syncSelectionState();
 
     return () => {
       editor.off("update", syncSlashQuery);
@@ -197,6 +226,8 @@ export function FolioEditor(props: FolioEditorProps) {
       editor.off("blur", syncEditorFocus);
       editor.off("selectionUpdate", syncSlashQuery);
       editor.off("selectionUpdate", syncFocusedBlock);
+      editor.off("selectionUpdate", syncSelectionState);
+      editor.off("transaction", syncSelectionState);
     };
   }, [editor]);
 
@@ -354,13 +385,15 @@ export function FolioEditor(props: FolioEditorProps) {
           className={classNames("folio-editor__content", props.classNames?.content)}
           editor={editor}
         />
-        <BubbleToolbar
-          className={classNames(
-            "folio-editor__bubble-toolbar",
-            props.classNames?.bubbleToolbar,
-          )}
-          editor={editor}
-        />
+        {hasTextSelection ? (
+          <BubbleToolbar
+            className={classNames(
+              "folio-editor__bubble-toolbar",
+              props.classNames?.bubbleToolbar,
+            )}
+            editor={editor}
+          />
+        ) : null}
         <SlashMenu
           className={classNames("folio-editor__slash-menu", props.classNames?.slashMenu)}
           activeIndex={activeSlashCommandIndexForMenu}

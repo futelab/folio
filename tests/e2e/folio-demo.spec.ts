@@ -32,6 +32,21 @@ test("blank page uses a document-first surface with preview collapsed", async ({
   await expect(editor).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 });
 
+test("formatting toolbar does not dominate blank pages", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "New page" }).click();
+
+  await expect(page.getByRole("toolbar", { name: "Text formatting" })).toHaveCount(0);
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("Select me");
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+
+  await expect(page.getByRole("toolbar", { name: "Text formatting" })).toBeVisible();
+});
+
 test("slash commands open from editor input and filter typed query", async ({ page }) => {
   await page.goto("/");
 
