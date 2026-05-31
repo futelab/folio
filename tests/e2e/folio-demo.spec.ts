@@ -26,6 +26,7 @@ test("blank page uses a document-first surface with preview collapsed", async ({
 
   await expect(page.getByRole("complementary", { name: "Preview" })).toHaveCount(0);
   await expect(page.getByPlaceholder("Untitled")).toBeVisible();
+  await expect(page.getByPlaceholder("Untitled")).toHaveValue("");
   await expect(page.getByText("Type '/' for commands")).toBeVisible();
 
   const editor = page.getByTestId("folio-editor");
@@ -184,6 +185,27 @@ test("block side controls appear on block focus or hover and open the command me
 
   await expect(page.getByRole("menu", { name: "Slash commands" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: /Text/ })).toBeVisible();
+});
+
+test("block side controls remain reachable from editor keyboard focus", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("Keyboard block");
+
+  await expect(page.getByRole("button", { name: "Add block below" })).toBeVisible();
+
+  await page.keyboard.press("Tab");
+
+  await expect(page.getByRole("button", { name: "Add block below" })).toBeFocused();
+
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByRole("menu", { name: "Slash commands" })).toBeVisible();
 });
 
 test("block side controls target the hovered block when opening commands", async ({
