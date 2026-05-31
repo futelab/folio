@@ -11,7 +11,10 @@ import { BlockControls } from "./blocks/BlockControls";
 import { FolioEditorContext } from "./context";
 import { BubbleToolbar } from "./menus/BubbleToolbar";
 import { SlashMenu } from "./menus/SlashMenu";
-import { getSlashMenuCommands } from "./menus/slashMenuUtils";
+import {
+  getSlashMenuCommands,
+  getSlashMenuDisplayCommands,
+} from "./menus/slashMenuUtils";
 import { useFolioEditor } from "./useFolioEditor";
 import type { UseFolioEditorOptions } from "./useFolioEditor";
 
@@ -116,9 +119,13 @@ export function FolioEditor(props: FolioEditorProps) {
     () => getSlashMenuCommands(slashCommands, slashQuery),
     [slashCommands, slashQuery],
   );
+  const displayedSlashCommands = useMemo(
+    () => getSlashMenuDisplayCommands(filteredSlashCommands),
+    [filteredSlashCommands],
+  );
   const activeSlashCommandIndexForMenu = Math.min(
     activeSlashCommandIndex,
-    Math.max(filteredSlashCommands.length - 1, 0),
+    Math.max(displayedSlashCommands.length - 1, 0),
   );
 
   const closeSlashMenu = useCallback(() => {
@@ -190,7 +197,7 @@ export function FolioEditor(props: FolioEditorProps) {
         return;
       }
 
-      if (!slashQuery || !filteredSlashCommands.length) {
+      if (!slashQuery || !displayedSlashCommands.length) {
         return;
       }
 
@@ -198,7 +205,7 @@ export function FolioEditor(props: FolioEditorProps) {
         event.preventDefault();
         event.stopPropagation();
         setActiveSlashCommandIndex(
-          (currentIndex) => (currentIndex + 1) % filteredSlashCommands.length,
+          (currentIndex) => (currentIndex + 1) % displayedSlashCommands.length,
         );
         return;
       }
@@ -208,8 +215,8 @@ export function FolioEditor(props: FolioEditorProps) {
         event.stopPropagation();
         setActiveSlashCommandIndex(
           (currentIndex) =>
-            (currentIndex - 1 + filteredSlashCommands.length) %
-            filteredSlashCommands.length,
+            (currentIndex - 1 + displayedSlashCommands.length) %
+            displayedSlashCommands.length,
         );
         return;
       }
@@ -224,12 +231,12 @@ export function FolioEditor(props: FolioEditorProps) {
       if (event.key === "End") {
         event.preventDefault();
         event.stopPropagation();
-        setActiveSlashCommandIndex(filteredSlashCommands.length - 1);
+        setActiveSlashCommandIndex(displayedSlashCommands.length - 1);
         return;
       }
 
       if (event.key === "Enter") {
-        const command = filteredSlashCommands[activeSlashCommandIndexForMenu];
+        const command = displayedSlashCommands[activeSlashCommandIndexForMenu];
 
         if (command) {
           event.preventDefault();
@@ -241,7 +248,7 @@ export function FolioEditor(props: FolioEditorProps) {
     [
       activeSlashCommandIndexForMenu,
       closeSlashMenu,
-      filteredSlashCommands,
+      displayedSlashCommands,
       runSlashCommand,
       slashQuery,
     ],

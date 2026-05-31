@@ -4,7 +4,28 @@ import type { KeyboardEvent } from "react";
 import type { Editor } from "@tiptap/core";
 import { createDefaultFolioCommands } from "@futelab/folio-core/browser";
 import type { FolioCommandContribution } from "@futelab/folio-core/browser";
-import { getSlashMenuCommands } from "./slashMenuUtils";
+import {
+  Bookmark,
+  Code,
+  Heading1,
+  Heading2,
+  Heading3,
+  Image,
+  List,
+  ListOrdered,
+  ListTodo,
+  ListTree,
+  Minus,
+  PanelTop,
+  Quote,
+  Table,
+  Text,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  getSlashMenuCommands,
+  groupSlashMenuCommands,
+} from "./slashMenuUtils";
 
 export interface SlashMenuProps {
   editor: Editor | null;
@@ -23,6 +44,27 @@ function getMenuItems(menu: HTMLElement): HTMLButtonElement[] {
     menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
   );
 }
+
+const commandIcons = {
+  Bookmark,
+  Code,
+  Heading1,
+  Heading2,
+  Heading3,
+  Image,
+  List,
+  ListOrdered,
+  ListTodo,
+  ListTree,
+  Minus,
+  PanelTop,
+  Quote,
+  Table,
+  Text,
+} satisfies Record<
+  NonNullable<FolioCommandContribution["icon"]>,
+  LucideIcon
+>;
 
 function focusMenuItem(
   menu: HTMLElement,
@@ -91,6 +133,8 @@ export function SlashMenu({
   const availableCommands = commands ?? defaultCommands;
 
   const filteredCommands = getSlashMenuCommands(availableCommands, query);
+  const groupedCommands = groupSlashMenuCommands(filteredCommands);
+  const displayedCommands = groupedCommands.flatMap((group) => group.commands);
 
   if (!filteredCommands.length) return null;
 
@@ -102,32 +146,54 @@ export function SlashMenu({
       role="menu"
       style={style}
     >
-      {filteredCommands.map((command, index) => {
-        const isActive = index === activeIndex;
+      {groupedCommands.map((group) => (
+        <div className="folio-slash-menu__group" key={group.group}>
+          <div className="folio-slash-menu__group-label">{group.group}</div>
+          {group.commands.map((command) => {
+            const index = displayedCommands.indexOf(command);
+            const isActive = index === activeIndex;
+            const Icon = command.icon
+              ? (commandIcons[command.icon] ?? Text)
+              : Text;
 
-        return (
-          <button
-            aria-selected={isActive ? "true" : undefined}
-            className="folio-slash-menu__item"
-            data-active={isActive ? "true" : undefined}
-            key={command.name}
-            onClick={() => {
-              if (onCommandSelect) {
-                onCommandSelect(command);
-                return;
-              }
+            return (
+              <button
+                aria-label={command.label}
+                aria-selected={isActive ? "true" : undefined}
+                className="folio-slash-menu__item"
+                data-active={isActive ? "true" : undefined}
+                key={command.name}
+                onClick={() => {
+                  if (onCommandSelect) {
+                    onCommandSelect(command);
+                    return;
+                  }
 
-              command.action({ editor });
-            }}
-            onFocus={() => onActiveIndexChange?.(index)}
-            onMouseEnter={() => onActiveIndexChange?.(index)}
-            role="menuitem"
-            type="button"
-          >
-            {command.label}
-          </button>
-        );
-      })}
+                  command.action({ editor });
+                }}
+                onFocus={() => onActiveIndexChange?.(index)}
+                onMouseEnter={() => onActiveIndexChange?.(index)}
+                role="menuitem"
+                type="button"
+              >
+                <span className="folio-slash-menu__item-icon">
+                  <Icon aria-hidden size={17} />
+                </span>
+                <span className="folio-slash-menu__item-copy">
+                  <span className="folio-slash-menu__item-label">
+                    {command.label}
+                  </span>
+                  {command.description ? (
+                    <span className="folio-slash-menu__item-description">
+                      {command.description}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }

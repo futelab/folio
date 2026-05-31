@@ -1,5 +1,12 @@
 import type { FolioCommandContribution } from "@futelab/folio-core/browser";
 
+export const slashMenuGroupOrder = [
+  "Basic",
+  "Lists",
+  "Media",
+  "Advanced",
+] as const;
+
 export function normalizeSlashQuery(query: string): string {
   return query.replace(/^\//, "").trim().toLowerCase();
 }
@@ -21,6 +28,7 @@ function commandMatchesQuery(
   const searchableValues = [
     command.label,
     command.name,
+    command.description ?? "",
     ...(command.keywords ?? []),
   ];
 
@@ -45,4 +53,25 @@ export function getSlashMenuCommands(
   return commands.filter((command) =>
     commandMatchesQuery(command, normalizedQuery),
   );
+}
+
+export function groupSlashMenuCommands(
+  commands: FolioCommandContribution[],
+): Array<{ group: string; commands: FolioCommandContribution[] }> {
+  const grouped = new Map<string, FolioCommandContribution[]>();
+
+  for (const command of commands) {
+    const group = command.group ?? "Advanced";
+    grouped.set(group, [...(grouped.get(group) ?? []), command]);
+  }
+
+  return slashMenuGroupOrder
+    .filter((group) => grouped.has(group))
+    .map((group) => ({ group, commands: grouped.get(group) ?? [] }));
+}
+
+export function getSlashMenuDisplayCommands(
+  commands: FolioCommandContribution[],
+): FolioCommandContribution[] {
+  return groupSlashMenuCommands(commands).flatMap((group) => group.commands);
 }
