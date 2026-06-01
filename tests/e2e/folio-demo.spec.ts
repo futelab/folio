@@ -48,6 +48,82 @@ test("formatting toolbar does not dominate blank pages", async ({ page }) => {
   await expect(page.getByRole("toolbar", { name: "Text formatting" })).toBeVisible();
 });
 
+test("formatting toolbar follows the selected text instead of the editor bottom", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("First toolbar target");
+
+  for (const line of [
+    "Second paragraph keeps content below the selection.",
+    "Third paragraph keeps the editor taller than the first line.",
+    "Fourth paragraph makes a bottom-anchored toolbar obvious.",
+    "Fifth paragraph gives the document enough vertical depth.",
+    "Sixth paragraph should not influence the selected text toolbar.",
+  ]) {
+    await page.keyboard.press("Enter");
+    await page.keyboard.type(line);
+  }
+
+  const selectedText = await page.evaluate(() => {
+    const paragraph = Array.from(document.querySelectorAll(".ProseMirror p")).find(
+      (element) => element.textContent === "First toolbar target",
+    );
+    const text = paragraph?.firstChild;
+
+    if (!text?.textContent) {
+      return null;
+    }
+
+    const range = document.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, text.textContent.length);
+    const rect = range.getBoundingClientRect();
+
+    return {
+      endX: rect.right - 2,
+      height: rect.height,
+      startX: rect.left + 2,
+      top: rect.top,
+      width: rect.width,
+      x: rect.left,
+      y: rect.top + rect.height / 2,
+    };
+  });
+
+  expect(selectedText).not.toBeNull();
+
+  await page.mouse.move(selectedText!.startX, selectedText!.y);
+  await page.mouse.down();
+  await page.mouse.move(selectedText!.endX, selectedText!.y, { steps: 8 });
+  await page.mouse.up();
+
+  const toolbar = page.getByRole("toolbar", { name: "Text formatting" });
+  await expect(toolbar).toBeVisible();
+
+  const toolbarBox = await toolbar.boundingBox();
+  expect(toolbarBox).not.toBeNull();
+  expect(toolbarBox!.y + toolbarBox!.height).toBeLessThanOrEqual(
+    selectedText!.top - 4,
+  );
+  expect(
+    Math.abs(
+      toolbarBox!.x +
+        toolbarBox!.width / 2 -
+        (selectedText!.x + selectedText!.width / 2),
+    ),
+  ).toBeLessThan(180);
+
+  await toolbar.getByRole("button", { name: "Bold" }).click();
+
+  await expect(editor.locator("strong")).toHaveText("First toolbar target");
+});
+
 test("slash commands open from editor input and filter typed query", async ({ page }) => {
   await page.goto("/");
 

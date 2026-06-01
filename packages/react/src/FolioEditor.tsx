@@ -151,6 +151,101 @@ function getSlashMenuPosition(
   };
 }
 
+interface SelectionRect {
+  bottom: number;
+  height: number;
+  left: number;
+  right: number;
+  top: number;
+  width: number;
+}
+
+function getTextSelectionRect(editor: Editor): SelectionRect | null {
+  const ownerDocument = editor.view.dom.ownerDocument;
+  const domSelection = ownerDocument.getSelection();
+
+  if (domSelection?.rangeCount) {
+    const range = domSelection.getRangeAt(0);
+    const ancestor = range.commonAncestorContainer;
+
+    if (editor.view.dom.contains(ancestor)) {
+      const rect = range.getBoundingClientRect();
+
+      if (rect.width > 0 || rect.height > 0) {
+        return rect;
+      }
+
+      const firstRect = Array.from(range.getClientRects()).find(
+        (clientRect) => clientRect.width > 0 || clientRect.height > 0,
+      );
+
+      if (firstRect) {
+        return firstRect;
+      }
+    }
+  }
+
+  const { from, to } = editor.state.selection;
+  const start = editor.view.coordsAtPos(from);
+  const end = editor.view.coordsAtPos(to);
+  const left = Math.min(start.left, end.left);
+  const right = Math.max(start.right, end.right);
+  const top = Math.min(start.top, end.top);
+  const bottom = Math.max(start.bottom, end.bottom);
+
+  return {
+    bottom,
+    height: bottom - top,
+    left,
+    right,
+    top,
+    width: right - left,
+  };
+}
+
+function getBubbleToolbarPosition(
+  editor: Editor | null,
+  rootElement: HTMLElement | null,
+): CSSProperties | undefined {
+  const selection = editor?.state.selection;
+
+  if (!editor || !rootElement || !selection || !isFormattingTextSelection(selection)) {
+    return undefined;
+  }
+
+  const selectionRect = getTextSelectionRect(editor);
+
+  if (!selectionRect) return undefined;
+
+  const rootRect = rootElement.getBoundingClientRect();
+  const toolbarWidth = 280;
+  const toolbarHeight = 38;
+  const edgeGap = 8;
+  const selectionCenter = selectionRect.left + selectionRect.width / 2;
+  const minLeft = toolbarWidth / 2 + edgeGap;
+  const maxLeft = Math.max(rootElement.clientWidth - toolbarWidth / 2 - edgeGap, minLeft);
+  const left = Math.min(
+    Math.max(selectionCenter - rootRect.left, minLeft),
+    maxLeft,
+  );
+  const topAbove = selectionRect.top - rootRect.top - edgeGap;
+  const hasRoomAbove = selectionRect.top - toolbarHeight - edgeGap > edgeGap;
+
+  if (hasRoomAbove) {
+    return {
+      left,
+      top: topAbove,
+      transform: "translate(-50%, -100%)",
+    };
+  }
+
+  return {
+    left,
+    top: selectionRect.bottom - rootRect.top + edgeGap,
+    transform: "translate(-50%, 0)",
+  };
+}
+
 function isFormattingTextSelection(selection: Selection): boolean {
   if (selection.empty || selection instanceof NodeSelection) return false;
 
@@ -182,6 +277,7 @@ export function FolioEditor(props: FolioEditorProps) {
   const [editorHasFocus, setEditorHasFocus] = useState(false);
   const [rootHasFocus, setRootHasFocus] = useState(false);
   const [hasTextSelection, setHasTextSelection] = useState(false);
+  const [bubbleToolbarStyle, setBubbleToolbarStyle] = useState<CSSProperties>();
   const activeBlock =
     hoveredBlock ??
     (editorHasFocus || rootHasFocus || blockMenuOpen ? focusedBlock : null);
@@ -236,8 +332,14 @@ export function FolioEditor(props: FolioEditorProps) {
 
     const syncSelectionState = () => {
       const selection = editor.state.selection;
+      const nextHasTextSelection = isFormattingTextSelection(selection);
 
-      setHasTextSelection(isFormattingTextSelection(selection));
+      setHasTextSelection(nextHasTextSelection);
+      setBubbleToolbarStyle(
+        nextHasTextSelection
+          ? getBubbleToolbarPosition(editor, rootRef.current)
+          : undefined,
+      );
     };
 
     editor.on("update", syncSlashQuery);
@@ -282,6 +384,22 @@ export function FolioEditor(props: FolioEditorProps) {
       window.removeEventListener("scroll", updateSlashMenuPosition, true);
     };
   }, [activeMenuQuery, editor]);
+
+  useEffect(() => {
+    if (!hasTextSelection) return undefined;
+
+    const updateBubbleToolbarPosition = () => {
+      setBubbleToolbarStyle(getBubbleToolbarPosition(editor, rootRef.current));
+    };
+
+    window.addEventListener("resize", updateBubbleToolbarPosition);
+    window.addEventListener("scroll", updateBubbleToolbarPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateBubbleToolbarPosition);
+      window.removeEventListener("scroll", updateBubbleToolbarPosition, true);
+    };
+  }, [editor, hasTextSelection]);
 
   const runSlashCommand = useCallback(
     (command: FolioCommandContribution) => {
@@ -475,6 +593,7 @@ export function FolioEditor(props: FolioEditorProps) {
               props.classNames?.bubbleToolbar,
             )}
             editor={editor}
+            style={bubbleToolbarStyle}
           />
         ) : null}
         <SlashMenu

@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import type { CSSProperties } from "react";
 import type { Editor } from "@tiptap/core";
 import {
   Bold,
@@ -13,6 +14,7 @@ import {
 export interface BubbleToolbarProps {
   editor: Editor | null;
   className?: string;
+  style?: CSSProperties;
 }
 
 interface ToolbarAction {
@@ -119,12 +121,13 @@ const toolbarActions: ToolbarAction[] = [
   },
 ];
 
-export function BubbleToolbar({ editor, className }: BubbleToolbarProps) {
+export function BubbleToolbar({ editor, className, style }: BubbleToolbarProps) {
   return (
     <div
       aria-label="Text formatting"
       className={className ?? "folio-bubble-toolbar"}
       role="toolbar"
+      style={style}
     >
       {toolbarActions.map((action) => {
         const Icon = action.icon;
