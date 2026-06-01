@@ -180,12 +180,64 @@
   padding: 0.2rem 0.35rem;
 }
 
+.folio-editor .ProseMirror [data-type="details"] {
+  align-items: start;
+  column-gap: 0.15rem;
+  display: grid;
+  grid-template-columns: 1.35rem minmax(0, 1fr);
+  padding: 0.1rem 0;
+}
+
 .folio-editor .ProseMirror summary,
 .folio-editor .ProseMirror [data-type="details"] > button {
   border-radius: var(--folio-radius-sm);
   cursor: pointer;
   font-weight: 600;
   padding: 0.2rem 0.35rem;
+}
+
+.folio-editor .ProseMirror [data-type="details"] > button {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--folio-color-subtle);
+  display: flex;
+  height: 1.35rem;
+  justify-content: center;
+  line-height: 1;
+  margin-top: 0.14rem;
+  padding: 0;
+  width: 1.35rem;
+}
+
+.folio-editor .ProseMirror [data-type="details"] > button::before {
+  border-color: transparent transparent transparent currentColor;
+  border-style: solid;
+  border-width: 0.28rem 0 0.28rem 0.4rem;
+  content: "";
+  transform: translateX(0.05rem);
+  transform-origin: 35% 50%;
+}
+
+.folio-editor .ProseMirror [data-type="details"].is-open > button::before {
+  transform: rotate(90deg) translateX(0.05rem);
+}
+
+.folio-editor .ProseMirror [data-type="details"] summary {
+  display: block;
+  font-weight: 400;
+  min-height: 1.6em;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.folio-editor .ProseMirror [data-type="details"] summary::marker {
+  content: "";
+}
+
+.folio-editor .ProseMirror [data-type="detailsContent"] {
+  color: var(--folio-color-text);
 }
 
 .folio-editor .ProseMirror summary:hover,
