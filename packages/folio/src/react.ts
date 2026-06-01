@@ -119,6 +119,7 @@ export const FolioReader = InternalFolioReader as (
 export interface BubbleToolbarProps {
   editor: Editor | null;
   className?: string;
+  style?: CSSProperties;
 }
 
 export const BubbleToolbar = InternalBubbleToolbar as (

@@ -306,6 +306,11 @@
   padding: 3px;
 }
 
+.folio-editor__bubble-toolbar {
+  position: absolute;
+  z-index: 30;
+}
+
 .folio-block-controls button,
 .folio-editor__block-controls button,
 .folio-bubble-toolbar button,
