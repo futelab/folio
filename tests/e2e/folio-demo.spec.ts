@@ -539,6 +539,52 @@ test("block side controls target the hovered block when opening commands", async
   await expect(editor.locator("p", { hasText: "First block" })).toBeVisible();
 });
 
+test("drag handle reorders top-level blocks", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("First drag block");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Second drag block");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Third drag block");
+  await page.locator(".folio-demo__topbar").click();
+
+  await editor.getByText("First drag block").hover();
+
+  const dragHandle = page.getByRole("button", { name: "Drag block" });
+  const secondBlock = editor.getByText("Second drag block");
+  const secondBlockBox = await secondBlock.boundingBox();
+
+  expect(secondBlockBox).not.toBeNull();
+
+  const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
+
+  await dragHandle.dispatchEvent("dragstart", { dataTransfer });
+  await secondBlock.dispatchEvent("dragover", {
+    clientX: secondBlockBox!.x + secondBlockBox!.width / 2,
+    clientY: secondBlockBox!.y + secondBlockBox!.height - 1,
+    dataTransfer,
+  });
+  await secondBlock.dispatchEvent("drop", {
+    clientX: secondBlockBox!.x + secondBlockBox!.width / 2,
+    clientY: secondBlockBox!.y + secondBlockBox!.height - 1,
+    dataTransfer,
+  });
+
+  const blockTexts = await editor.locator("p").evaluateAll((blocks) =>
+    blocks.map((block) => block.textContent?.trim()).filter(Boolean),
+  );
+
+  expect(blockTexts.slice(0, 3)).toEqual([
+    "Second drag block",
+    "First drag block",
+    "Third drag block",
+  ]);
+});
+
 test("block side controls are vertically centered on the first line", async ({
   page,
 }) => {
@@ -677,6 +723,7 @@ test("table controls add rows and columns in place", async ({ page }) => {
   await editor.click();
   await page.keyboard.type("/table");
   await page.getByRole("menuitem", { exact: true, name: "Table" }).click();
+  await page.locator(".folio-demo__topbar").click();
 
   const table = editor.locator("table");
   await expect(table).toBeVisible();
@@ -708,4 +755,59 @@ test("table controls add rows and columns in place", async ({ page }) => {
 
   expect(nextShape.rows).toBe(initialShape.rows + 1);
   expect(nextShape.cols).toBe(initialShape.cols + 1);
+});
+
+test("table controls stay visible when hovering add buttons", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("/table");
+  await page.getByRole("menuitem", { exact: true, name: "Table" }).click();
+  await page.locator(".folio-demo__topbar").click();
+
+  const table = editor.locator("table");
+  await expect(table).toBeVisible();
+  await table.hover();
+
+  const columnButton = page.getByRole("button", { name: "Add table column" });
+  const rowButton = page.getByRole("button", { name: "Add table row" });
+
+  await expect(columnButton).toBeVisible();
+  await expect(rowButton).toBeVisible();
+
+  const tableBox = await table.boundingBox();
+  const columnBox = await columnButton.boundingBox();
+  const rowBox = await rowButton.boundingBox();
+
+  expect(tableBox).not.toBeNull();
+  expect(columnBox).not.toBeNull();
+  expect(rowBox).not.toBeNull();
+
+  await page.mouse.move(
+    tableBox!.x + tableBox!.width - 2,
+    columnBox!.y + columnBox!.height / 2,
+  );
+  await page.mouse.move(
+    (tableBox!.x + tableBox!.width + columnBox!.x) / 2,
+    columnBox!.y + columnBox!.height / 2,
+  );
+  await expect(columnButton).toBeVisible();
+  await expect(rowButton).toBeVisible();
+
+  await page.mouse.move(
+    columnBox!.x + columnBox!.width / 2,
+    columnBox!.y + columnBox!.height / 2,
+  );
+  await page.mouse.move(
+    rowBox!.x + rowBox!.width / 2,
+    tableBox!.y + tableBox!.height - 2,
+  );
+  await page.mouse.move(
+    rowBox!.x + rowBox!.width / 2,
+    (tableBox!.y + tableBox!.height + rowBox!.y) / 2,
+  );
+  await expect(columnButton).toBeVisible();
+  await expect(rowButton).toBeVisible();
 });

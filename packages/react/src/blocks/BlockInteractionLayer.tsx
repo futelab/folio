@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import type { DragEvent } from "react";
 import { BlockSideControls } from "./BlockSideControls";
 import { getBlockAnchor } from "./blockDom";
 
@@ -7,6 +8,8 @@ export interface BlockInteractionLayerProps {
   editorRoot: HTMLElement | null;
   className?: string;
   sideControlsClassName?: string;
+  onDragBlockEnd?: () => void;
+  onDragBlockStart?: (event: DragEvent<HTMLButtonElement>) => void;
   onOpenBlockMenu: () => void;
 }
 
@@ -38,6 +41,8 @@ export function BlockInteractionLayer({
   editorRoot,
   className,
   sideControlsClassName,
+  onDragBlockEnd,
+  onDragBlockStart,
   onOpenBlockMenu,
 }: BlockInteractionLayerProps) {
   const style = getSideControlsStyle(activeBlock, editorRoot);
@@ -47,6 +52,8 @@ export function BlockInteractionLayer({
       <BlockSideControls
         className={sideControlsClassName}
         onAddBlock={onOpenBlockMenu}
+        onDragBlockEnd={onDragBlockEnd}
+        onDragBlockStart={onDragBlockStart}
         style={style}
         visible={Boolean(style)}
       />

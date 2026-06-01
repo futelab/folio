@@ -275,7 +275,7 @@ import {
 
 - `createEmptyFolioDocument()`：创建空白文档。
 - `isFolioDocument(value)`：判断解析出来的值是否是 Folio 文档。
-- `sampleFolioDocument`：内置示例文档，可用于测试、Storybook 或 demo。
+- `sampleFolioDocument`：内置示例文档，可用于测试或 demo。
 
 ## 内置编辑交互
 

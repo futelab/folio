@@ -15,10 +15,6 @@
       ],
       "outputs": ["dist/**", "styles.css"]
     },
-    "@futelab/folio-docs#build": {
-      "dependsOn": ["^build"],
-      "outputs": ["storybook-static/**"]
-    },
     "dev": {
       "cache": false,
       "persistent": true
