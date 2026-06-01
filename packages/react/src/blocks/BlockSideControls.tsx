@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import type { DragEvent } from "react";
 import type { MouseEvent } from "react";
 import { GripVertical, Plus } from "lucide-react";
 
@@ -7,6 +8,8 @@ export interface BlockSideControlsProps {
   style?: CSSProperties;
   visible: boolean;
   onAddBlock: () => void;
+  onDragBlockEnd?: () => void;
+  onDragBlockStart?: (event: DragEvent<HTMLButtonElement>) => void;
 }
 
 function classNames(...values: Array<string | undefined>): string {
@@ -18,6 +21,8 @@ export function BlockSideControls({
   style,
   visible,
   onAddBlock,
+  onDragBlockEnd,
+  onDragBlockStart,
 }: BlockSideControlsProps) {
   if (!visible) return null;
 
@@ -45,7 +50,8 @@ export function BlockSideControls({
         aria-label="Drag block"
         className="folio-block-side-controls__button"
         draggable
-        onMouseDown={preserveEditorFocus}
+        onDragEnd={onDragBlockEnd}
+        onDragStart={onDragBlockStart}
         title="Drag block"
         type="button"
       >

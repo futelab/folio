@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import type { DragEvent } from "react";
 import type { FocusEvent } from "react";
 import type { KeyboardEvent } from "react";
 import type { MouseEvent } from "react";
 import type { Editor } from "@tiptap/core";
-import { NodeSelection } from "@tiptap/pm/state";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import type { Selection } from "@tiptap/pm/state";
 import { EditorContent } from "@tiptap/react";
 import {
@@ -92,6 +94,38 @@ function isPointInBlockControlsBridge(
     point.clientY >= minY &&
     point.clientY <= maxY
   );
+}
+
+function isPointInTableControlsBridge(
+  point: { clientX: number; clientY: number },
+  table: HTMLElement | null,
+  root: HTMLElement | null,
+): boolean {
+  if (!table || !root?.contains(table)) return false;
+
+  const controls = root.querySelector(".folio-table-controls");
+
+  if (!(controls instanceof HTMLElement)) return false;
+
+  const tableRect = table.getBoundingClientRect();
+  const buttons = Array.from(
+    controls.querySelectorAll(".folio-table-controls__button"),
+  ).filter((button): button is HTMLElement => button instanceof HTMLElement);
+
+  return buttons.some((button) => {
+    const buttonRect = button.getBoundingClientRect();
+    const minX = Math.min(tableRect.left, buttonRect.left) - 2;
+    const maxX = Math.max(tableRect.right, buttonRect.right) + 2;
+    const minY = Math.min(tableRect.top, buttonRect.top) - 2;
+    const maxY = Math.max(tableRect.bottom, buttonRect.bottom) + 2;
+
+    return (
+      point.clientX >= minX &&
+      point.clientX <= maxX &&
+      point.clientY >= minY &&
+      point.clientY <= maxY
+    );
+  });
 }
 
 function getActiveSlashQuery(editor: Editor | null): string | undefined {
@@ -285,9 +319,145 @@ function runEditorChain(editor: Editor | null, callback: (chain: any) => any): b
   }
 }
 
+interface BlockPosition {
+  node: ProseMirrorNode;
+  pos: number;
+}
+
+function getDocumentInsertPosition(
+  source: BlockPosition,
+  target: BlockPosition,
+  placement: "before" | "after",
+): number | null {
+  const insertPosition =
+    placement === "after" ? target.pos + target.node.nodeSize : target.pos;
+  const sourceEnd = source.pos + source.node.nodeSize;
+
+  if (insertPosition >= source.pos && insertPosition <= sourceEnd) {
+    return null;
+  }
+
+  return insertPosition > source.pos
+    ? insertPosition - source.node.nodeSize
+    : insertPosition;
+}
+
+function getTopLevelBlockPosition(
+  editor: Editor | null,
+  block: HTMLElement | null,
+): BlockPosition | null {
+  if (!editor || !block || !editor.view.dom.contains(block)) {
+    return null;
+  }
+
+  let topLevelBlock: HTMLElement = block;
+
+  while (
+    topLevelBlock.parentElement &&
+    topLevelBlock.parentElement !== editor.view.dom
+  ) {
+    topLevelBlock = topLevelBlock.parentElement;
+  }
+
+  if (topLevelBlock.parentElement !== editor.view.dom) {
+    return null;
+  }
+
+  const childIndex = Array.from(editor.view.dom.children).indexOf(topLevelBlock);
+
+  if (childIndex < 0 || childIndex >= editor.state.doc.childCount) {
+    return null;
+  }
+
+  let pos = 0;
+
+  for (let index = 0; index < childIndex; index += 1) {
+    pos += editor.state.doc.child(index).nodeSize;
+  }
+
+  return {
+    node: editor.state.doc.child(childIndex),
+    pos,
+  };
+}
+
+function getDropTargetBlock(
+  event: DragEvent<HTMLElement>,
+  editor: Editor | null,
+): HTMLElement | null {
+  if (!editor) return null;
+
+  const directTarget = findBlockElement(event.target, editor.view.dom);
+
+  if (directTarget) return directTarget;
+
+  const elementAtPoint = editor.view.dom.ownerDocument.elementFromPoint(
+    event.clientX,
+    event.clientY,
+  );
+
+  return findBlockElement(elementAtPoint, editor.view.dom);
+}
+
+function getDropPlacement(
+  event: DragEvent<HTMLElement>,
+  targetBlock: HTMLElement,
+): "before" | "after" {
+  const targetRect = getBlockAnchor(targetBlock).rect;
+  const targetMiddle = targetRect.top + targetRect.height / 2;
+
+  return event.clientY > targetMiddle ? "after" : "before";
+}
+
+function moveBlock(
+  editor: Editor | null,
+  sourceBlock: HTMLElement | null,
+  targetBlock: HTMLElement | null,
+  placement: "before" | "after",
+): boolean {
+  if (!editor || !sourceBlock || !targetBlock || sourceBlock === targetBlock) {
+    return false;
+  }
+
+  const source = getTopLevelBlockPosition(editor, sourceBlock);
+  const target = getTopLevelBlockPosition(editor, targetBlock);
+
+  if (!source || !target || source.pos === target.pos) return false;
+
+  const sourceEnd = source.pos + source.node.nodeSize;
+  const adjustedInsertPosition = getDocumentInsertPosition(
+    source,
+    target,
+    placement,
+  );
+
+  if (adjustedInsertPosition === null) return false;
+
+  try {
+    const transaction = editor.state.tr
+      .delete(source.pos, sourceEnd)
+      .insert(adjustedInsertPosition, source.node);
+    const selectionPosition = Math.min(
+      adjustedInsertPosition + 1,
+      transaction.doc.content.size,
+    );
+
+    transaction.setSelection(
+      TextSelection.near(transaction.doc.resolve(selectionPosition)),
+    );
+    editor.view.dispatch(transaction.scrollIntoView());
+    editor.view.focus();
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function FolioEditor(props: FolioEditorProps) {
   const editor = useFolioEditor(props);
   const rootRef = useRef<HTMLDivElement>(null);
+  const draggedBlockRef = useRef<HTMLElement | null>(null);
   const slashCommands = useMemo(() => createDefaultFolioCommands(), []);
   const [slashQuery, setSlashQuery] = useState(props.initialSlashQuery);
   const [slashMenuStyle, setSlashMenuStyle] = useState<CSSProperties>();
@@ -571,6 +741,67 @@ export function FolioEditor(props: FolioEditorProps) {
     runEditorChain(editor, (chain) => chain.addColumnAfter());
   }, [activeTable, editor]);
 
+  const handleDragBlockStart = useCallback(
+    (event: DragEvent<HTMLButtonElement>) => {
+      if (!editor || !activeBlock) {
+        event.preventDefault();
+        return;
+      }
+
+      draggedBlockRef.current = activeBlock;
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("application/x-folio-block", "move");
+    },
+    [activeBlock, editor],
+  );
+
+  const handleDragBlockEnd = useCallback(() => {
+    draggedBlockRef.current = null;
+  }, []);
+
+  const handleDragOver = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      if (!draggedBlockRef.current || !editor) return;
+
+      const targetBlock = getDropTargetBlock(event, editor);
+
+      if (!targetBlock || targetBlock === draggedBlockRef.current) return;
+
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+    },
+    [editor],
+  );
+
+  const handleDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      const sourceBlock = draggedBlockRef.current;
+
+      if (!sourceBlock || !editor) return;
+
+      const targetBlock = getDropTargetBlock(event, editor);
+
+      if (!targetBlock) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const moved = moveBlock(
+        editor,
+        sourceBlock,
+        targetBlock,
+        getDropPlacement(event, targetBlock),
+      );
+
+      draggedBlockRef.current = null;
+
+      if (moved) {
+        updateHoveredBlock(targetBlock);
+      }
+    },
+    [editor, updateHoveredBlock],
+  );
+
   const handleMouseDownCapture = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
       if (
@@ -611,29 +842,34 @@ export function FolioEditor(props: FolioEditorProps) {
           event,
           hoveredBlockRef.current,
           rootRef.current,
-        )
+        ) ||
+        isPointInTableControlsBridge(event, activeTable, rootRef.current)
       ) {
         return;
       }
 
       updateHoveredBlock(null);
     },
-    [editor, updateHoveredBlock],
+    [activeTable, editor, updateHoveredBlock],
   );
 
-  const handleMouseLeave = useCallback((event: MouseEvent<HTMLDivElement>) => {
-    if (
-      isPointInBlockControlsBridge(
-        event,
-        hoveredBlockRef.current,
-        rootRef.current,
-      )
-    ) {
-      return;
-    }
+  const handleMouseLeave = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (
+        isPointInBlockControlsBridge(
+          event,
+          hoveredBlockRef.current,
+          rootRef.current,
+        ) ||
+        isPointInTableControlsBridge(event, activeTable, rootRef.current)
+      ) {
+        return;
+      }
 
-    updateHoveredBlock(null);
-  }, [updateHoveredBlock]);
+      updateHoveredBlock(null);
+    },
+    [activeTable, updateHoveredBlock],
+  );
 
   const handleFocusCapture = useCallback(() => {
     setRootHasFocus(true);
@@ -660,6 +896,8 @@ export function FolioEditor(props: FolioEditorProps) {
         data-testid="folio-editor"
         onBlurCapture={handleBlurCapture}
         onFocusCapture={handleFocusCapture}
+        onDragOverCapture={handleDragOver}
+        onDropCapture={handleDrop}
         onKeyDownCapture={handleKeyDownCapture}
         onMouseDownCapture={handleMouseDownCapture}
         onMouseLeave={handleMouseLeave}
@@ -672,6 +910,8 @@ export function FolioEditor(props: FolioEditorProps) {
         <BlockInteractionLayer
           activeBlock={activeBlock}
           editorRoot={rootRef.current}
+          onDragBlockEnd={handleDragBlockEnd}
+          onDragBlockStart={handleDragBlockStart}
           onOpenBlockMenu={handleOpenBlockMenu}
           sideControlsClassName={props.classNames?.blockControls}
         />
