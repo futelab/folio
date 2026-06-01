@@ -191,6 +191,24 @@ test("slash commands open from editor input and filter typed query", async ({ pa
   await expect(menu).toHaveCount(0);
 });
 
+test("slash command menu closes when clicking outside the editor", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("/");
+
+  await expect(page.getByRole("menu", { name: "Slash commands" })).toBeVisible();
+
+  await page.locator(".folio-demo__topbar").click();
+
+  await expect(page.getByRole("menu", { name: "Slash commands" })).toHaveCount(0);
+});
+
 test("slash command selection removes the typed query and applies the block", async ({ page }) => {
   await page.goto("/");
 
@@ -256,6 +274,50 @@ test("slash commands stay near the cursor and support editor keyboard selection"
   await expect(editor).not.toContainText("/he");
 });
 
+test("slash command keyboard navigation scrolls the active item into view", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("/");
+
+  const menu = page.getByRole("menu", { name: "Slash commands" });
+  await expect(menu).toBeVisible();
+
+  for (let index = 0; index < 12; index += 1) {
+    await page.keyboard.press("ArrowDown");
+  }
+
+  const scrollState = await page.evaluate(() => {
+    const menuElement = document.querySelector('[role="menu"][aria-label="Slash commands"]');
+    const activeItem = menuElement?.querySelector('[role="menuitem"][data-active="true"]');
+
+    if (!(menuElement instanceof HTMLElement) || !(activeItem instanceof HTMLElement)) {
+      return null;
+    }
+
+    const menuRect = menuElement.getBoundingClientRect();
+    const activeRect = activeItem.getBoundingClientRect();
+
+    return {
+      activeBottom: activeRect.bottom,
+      activeTop: activeRect.top,
+      menuBottom: menuRect.bottom,
+      menuScrollTop: menuElement.scrollTop,
+      menuTop: menuRect.top,
+    };
+  });
+
+  expect(scrollState).not.toBeNull();
+  expect(scrollState!.menuScrollTop).toBeGreaterThan(0);
+  expect(scrollState!.activeTop).toBeGreaterThanOrEqual(scrollState!.menuTop);
+  expect(scrollState!.activeBottom).toBeLessThanOrEqual(scrollState!.menuBottom);
+});
+
 test("slash menu keeps roving focus keyboard navigation when menu items are focused", async ({
   page,
 }) => {
@@ -308,6 +370,27 @@ test("block side controls appear on block focus or hover and open the command me
 
   await expect(page.getByRole("menu", { name: "Slash commands" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: /Text/ })).toBeVisible();
+});
+
+test("block command menu closes when clicking another editor line", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("First command block");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Second command block");
+
+  await editor.getByText("First command block").hover();
+  await page.getByRole("button", { name: "Add block below" }).click();
+  await expect(page.getByRole("menu", { name: "Slash commands" })).toBeVisible();
+
+  await editor.getByText("Second command block").click();
+
+  await expect(page.getByRole("menu", { name: "Slash commands" })).toHaveCount(0);
 });
 
 test("block side controls remain reachable from editor keyboard focus", async ({

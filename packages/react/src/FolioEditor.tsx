@@ -392,6 +392,33 @@ export function FolioEditor(props: FolioEditorProps) {
   }, [activeMenuQuery, editor]);
 
   useEffect(() => {
+    if (!activeMenuQuery) return undefined;
+
+    const ownerDocument = rootRef.current?.ownerDocument ?? document;
+
+    const closeOnOutsidePointerDown = (event: PointerEvent) => {
+      const root = rootRef.current;
+      const target = event.target;
+
+      if (!root || !(target instanceof Node) || root.contains(target)) {
+        return;
+      }
+
+      closeSlashMenu();
+    };
+
+    ownerDocument.addEventListener("pointerdown", closeOnOutsidePointerDown, true);
+
+    return () => {
+      ownerDocument.removeEventListener(
+        "pointerdown",
+        closeOnOutsidePointerDown,
+        true,
+      );
+    };
+  }, [activeMenuQuery, closeSlashMenu]);
+
+  useEffect(() => {
     if (!hasTextSelection) return undefined;
 
     const updateBubbleToolbarPosition = () => {
@@ -508,6 +535,23 @@ export function FolioEditor(props: FolioEditorProps) {
     setActiveSlashCommandIndex(0);
   }, [activeBlock, editor]);
 
+  const handleMouseDownCapture = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (
+        !blockMenuOpen ||
+        isSlashMenuEventTarget(event.target) ||
+        isBlockSideControlsEventTarget(event.target)
+      ) {
+        return;
+      }
+
+      if (event.target instanceof Node && editor?.view.dom.contains(event.target)) {
+        closeSlashMenu();
+      }
+    },
+    [blockMenuOpen, closeSlashMenu, editor],
+  );
+
   const handleMouseMove = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
       if (
@@ -579,6 +623,7 @@ export function FolioEditor(props: FolioEditorProps) {
         onBlurCapture={handleBlurCapture}
         onFocusCapture={handleFocusCapture}
         onKeyDownCapture={handleKeyDownCapture}
+        onMouseDownCapture={handleMouseDownCapture}
         onMouseLeave={handleMouseLeave}
         onMouseMove={handleMouseMove}
       >
