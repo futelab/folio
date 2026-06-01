@@ -231,6 +231,44 @@ test("block side controls stay visible when hovering their icons", async ({
   await expect(page.getByRole("button", { name: "Drag block" })).toBeVisible();
 });
 
+test("block side controls keep a clear gap before the first line content", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("Spacing block");
+
+  await editor.getByText("Spacing block").hover();
+
+  const contentGap = await page.evaluate(() => {
+    const controls = document.querySelector(".folio-block-side-controls");
+    const block = Array.from(document.querySelectorAll(".ProseMirror p")).find(
+      (element) => element.textContent?.includes("Spacing block"),
+    );
+
+    if (!(controls instanceof HTMLElement) || !(block instanceof HTMLElement)) {
+      return Number.NEGATIVE_INFINITY;
+    }
+
+    const range = document.createRange();
+
+    range.selectNodeContents(block.firstChild ?? block);
+
+    const firstLineRect = range.getClientRects()[0] ?? block.getBoundingClientRect();
+    const controlsRect = controls.getBoundingClientRect();
+
+    range.detach();
+
+    return firstLineRect.left - controlsRect.right;
+  });
+
+  expect(contentGap).toBeGreaterThanOrEqual(8);
+  expect(contentGap).toBeLessThanOrEqual(16);
+});
+
 test("block side controls target the hovered block when opening commands", async ({
   page,
 }) => {
@@ -342,7 +380,12 @@ test("toggle disclosure button is centered on the summary first line", async ({
   await editor.click();
   await page.keyboard.type("/toggle");
   await page.getByRole("menuitem", { name: "Toggle" }).click();
+
+  const summary = page.locator('.ProseMirror [data-type="details"] summary');
+
+  await summary.click();
   await page.keyboard.type("Toggle title");
+  await expect(summary).toContainText(/\S/);
 
   const centerDelta = await page.evaluate(() => {
     const button = document.querySelector(
