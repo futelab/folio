@@ -220,14 +220,15 @@
 .folio-editor .ProseMirror [data-type="details"] > button {
   align-items: center;
   appearance: none;
+  align-self: start;
   background: transparent;
   border: 0;
   color: var(--folio-color-subtle);
   display: flex;
-  height: 1.35rem;
+  height: 1.6em;
   justify-content: center;
   line-height: 1;
-  margin-top: 0.14rem;
+  margin-top: 0.2rem;
   padding: 0;
   width: 1.35rem;
 }
