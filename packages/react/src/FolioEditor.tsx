@@ -54,7 +54,7 @@ function isSlashMenuEventTarget(target: EventTarget | null): boolean {
 
 function isBlockSideControlsEventTarget(target: EventTarget | null): boolean {
   return (
-    target instanceof HTMLElement &&
+    target instanceof Element &&
     Boolean(target.closest(".folio-block-side-controls"))
   );
 }

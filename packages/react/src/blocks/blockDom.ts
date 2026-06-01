@@ -61,10 +61,53 @@ export function getCurrentBlockElement(editor: Editor | null): HTMLElement | nul
   return findBlockElement(node, editor.view.dom);
 }
 
+function isHiddenNode(node: Node): boolean {
+  const parent =
+    node instanceof HTMLElement
+      ? node
+      : node.parentElement ?? node.parentNode;
+
+  return parent instanceof HTMLElement && Boolean(parent.closest("[hidden]"));
+}
+
+function getDetailsSummaryAnchor(element: HTMLElement): HTMLElement | null {
+  if (!element.matches('[data-type="details"], details')) return null;
+
+  return element.querySelector("summary");
+}
+
+function getFirstTextLineRect(element: HTMLElement): DOMRect | null {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let currentNode = walker.nextNode();
+
+  while (currentNode) {
+    if (!isHiddenNode(currentNode) && currentNode.textContent?.trim()) {
+      const range = document.createRange();
+
+      range.selectNodeContents(currentNode);
+
+      const rect = Array.from(range.getClientRects()).find(
+        (candidate) => candidate.width > 0 && candidate.height > 0,
+      );
+
+      range.detach();
+
+      if (rect) return rect;
+    }
+
+    currentNode = walker.nextNode();
+  }
+
+  return null;
+}
+
 export function getBlockAnchor(element: HTMLElement): FolioBlockAnchor {
+  const anchorElement = getDetailsSummaryAnchor(element) ?? element;
+  const firstLineRect = getFirstTextLineRect(anchorElement);
+
   return {
-    element,
-    rect: element.getBoundingClientRect(),
+    element: anchorElement,
+    rect: firstLineRect ?? anchorElement.getBoundingClientRect(),
   };
 }
 

@@ -208,6 +208,29 @@ test("block side controls remain reachable from editor keyboard focus", async ({
   await expect(page.getByRole("menu", { name: "Slash commands" })).toBeVisible();
 });
 
+test("block side controls stay visible when hovering their icons", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("Hover controls");
+  await page.locator(".folio-demo__topbar").click();
+
+  await editor.getByText("Hover controls").hover();
+  await expect(page.getByRole("button", { name: "Add block below" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Add block below" }).hover();
+  await expect(page.getByRole("button", { name: "Add block below" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Drag block" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Drag block" }).hover();
+  await expect(page.getByRole("button", { name: "Add block below" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Drag block" })).toBeVisible();
+});
+
 test("block side controls target the hovered block when opening commands", async ({
   page,
 }) => {
@@ -229,7 +252,7 @@ test("block side controls target the hovered block when opening commands", async
   await expect(editor.locator("p", { hasText: "First block" })).toBeVisible();
 });
 
-test("block side controls are vertically centered on the active block", async ({
+test("block side controls are vertically centered on the first line", async ({
   page,
 }) => {
   await page.goto("/");
@@ -237,22 +260,35 @@ test("block side controls are vertically centered on the active block", async ({
 
   const editor = page.getByRole("textbox").last();
   await editor.click();
-  await page.keyboard.type("Centered block");
+  await page.keyboard.type(
+    "This is a very long block that wraps onto multiple visual lines in the editor so the side controls must align with the first visible line instead of the entire paragraph height. ".repeat(
+      3,
+    ),
+  );
 
   const centerDelta = await page.evaluate(() => {
     const controls = document.querySelector(".folio-block-side-controls");
-    const block = Array.from(document.querySelectorAll(".ProseMirror p")).find(
-      (element) => element.textContent?.includes("Centered block"),
-    );
+    const block = document.querySelector(".ProseMirror p");
 
     if (!(controls instanceof HTMLElement) || !(block instanceof HTMLElement)) {
       return Number.POSITIVE_INFINITY;
     }
 
     const controlsRect = controls.getBoundingClientRect();
-    const blockRect = block.getBoundingClientRect();
+    const textWalker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    const firstText = textWalker.nextNode();
+    let firstLineRect = block.getBoundingClientRect();
+
+    if (firstText) {
+      const range = document.createRange();
+
+      range.selectNodeContents(firstText);
+      firstLineRect = range.getClientRects()[0] ?? firstLineRect;
+      range.detach();
+    }
+
     const controlsCenter = controlsRect.top + controlsRect.height / 2;
-    const blockCenter = blockRect.top + blockRect.height / 2;
+    const blockCenter = firstLineRect.top + firstLineRect.height / 2;
 
     return Math.abs(controlsCenter - blockCenter);
   });
@@ -294,4 +330,49 @@ test("toggle command renders without native button chrome", async ({ page }) => 
     borderWidth: "0px",
     display: "flex",
   });
+});
+
+test("toggle disclosure button is centered on the summary first line", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("/toggle");
+  await page.getByRole("menuitem", { name: "Toggle" }).click();
+  await page.keyboard.type("Toggle title");
+
+  const centerDelta = await page.evaluate(() => {
+    const button = document.querySelector(
+      '.ProseMirror [data-type="details"] > button',
+    );
+    const summary = document.querySelector(
+      '.ProseMirror [data-type="details"] summary',
+    );
+
+    if (!(button instanceof HTMLElement) || !(summary instanceof HTMLElement)) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    const textWalker = document.createTreeWalker(summary, NodeFilter.SHOW_TEXT);
+    const firstText = textWalker.nextNode();
+
+    if (!firstText?.textContent?.trim()) return Number.POSITIVE_INFINITY;
+
+    const range = document.createRange();
+
+    range.selectNodeContents(firstText);
+    const firstLineRect = range.getClientRects()[0] ?? summary.getBoundingClientRect();
+    range.detach();
+
+    const buttonRect = button.getBoundingClientRect();
+    const buttonCenter = buttonRect.top + buttonRect.height / 2;
+    const summaryCenter = firstLineRect.top + firstLineRect.height / 2;
+
+    return Math.abs(buttonCenter - summaryCenter);
+  });
+
+  expect(centerDelta).toBeLessThanOrEqual(1);
 });
