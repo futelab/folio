@@ -269,6 +269,49 @@ test("block side controls keep a clear gap before the first line content", async
   expect(contentGap).toBeLessThanOrEqual(16);
 });
 
+test("block side controls stay visible while crossing the content gap", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("Bridge hover block");
+  await page.locator(".folio-demo__topbar").click();
+
+  await editor.getByText("Bridge hover block").hover();
+
+  const hoverBridge = await page.evaluate(() => {
+    const controls = document.querySelector(".folio-block-side-controls");
+    const block = Array.from(document.querySelectorAll(".ProseMirror p")).find(
+      (element) => element.textContent?.includes("Bridge hover block"),
+    );
+
+    if (!(controls instanceof HTMLElement) || !(block instanceof HTMLElement)) {
+      return null;
+    }
+
+    const controlsRect = controls.getBoundingClientRect();
+    const blockRect = block.getBoundingClientRect();
+
+    return {
+      x: (controlsRect.right + blockRect.left) / 2,
+      y: blockRect.top + blockRect.height / 2,
+    };
+  });
+
+  expect(hoverBridge).not.toBeNull();
+
+  await page.mouse.move(hoverBridge!.x, hoverBridge!.y);
+  await expect(page.getByRole("button", { name: "Add block below" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Drag block" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Drag block" }).hover();
+  await expect(page.getByRole("button", { name: "Add block below" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Drag block" })).toBeVisible();
+});
+
 test("block side controls target the hovered block when opening commands", async ({
   page,
 }) => {
