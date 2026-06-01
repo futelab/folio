@@ -15,6 +15,7 @@ import { BlockInteractionLayer } from "./blocks/BlockInteractionLayer";
 import {
   findBlockElement,
   focusBlockElement,
+  getBlockAnchor,
   getCurrentBlockElement,
 } from "./blocks/blockDom";
 import { FolioEditorContext } from "./context";
@@ -56,6 +57,32 @@ function isBlockSideControlsEventTarget(target: EventTarget | null): boolean {
   return (
     target instanceof Element &&
     Boolean(target.closest(".folio-block-side-controls"))
+  );
+}
+
+function isPointInBlockControlsBridge(
+  point: { clientX: number; clientY: number },
+  block: HTMLElement | null,
+  root: HTMLElement | null,
+): boolean {
+  if (!block || !root?.contains(block)) return false;
+
+  const controls = root.querySelector(".folio-block-side-controls");
+
+  if (!(controls instanceof HTMLElement)) return false;
+
+  const controlsRect = controls.getBoundingClientRect();
+  const anchorRect = getBlockAnchor(block).rect;
+  const minX = Math.min(controlsRect.right, anchorRect.left) - 2;
+  const maxX = Math.max(controlsRect.right, anchorRect.left) + 2;
+  const minY = Math.min(controlsRect.top, anchorRect.top) - 6;
+  const maxY = Math.max(controlsRect.bottom, anchorRect.bottom) + 6;
+
+  return (
+    point.clientX >= minX &&
+    point.clientX <= maxX &&
+    point.clientY >= minY &&
+    point.clientY <= maxY
   );
 }
 
@@ -150,6 +177,7 @@ export function FolioEditor(props: FolioEditorProps) {
   const [activeSlashCommandIndex, setActiveSlashCommandIndex] = useState(0);
   const [blockMenuOpen, setBlockMenuOpen] = useState(false);
   const [hoveredBlock, setHoveredBlock] = useState<HTMLElement | null>(null);
+  const hoveredBlockRef = useRef<HTMLElement | null>(null);
   const [focusedBlock, setFocusedBlock] = useState<HTMLElement | null>(null);
   const [editorHasFocus, setEditorHasFocus] = useState(false);
   const [rootHasFocus, setRootHasFocus] = useState(false);
@@ -178,6 +206,11 @@ export function FolioEditor(props: FolioEditorProps) {
     setActiveSlashCommandIndex(0);
   }, []);
 
+  const updateHoveredBlock = useCallback((block: HTMLElement | null) => {
+    hoveredBlockRef.current = block;
+    setHoveredBlock(block);
+  }, []);
+
   useEffect(() => {
     if (!editor) return undefined;
 
@@ -188,7 +221,7 @@ export function FolioEditor(props: FolioEditorProps) {
       if (nextQuery) {
         setSlashMenuStyle(getSlashMenuPosition(editor, rootRef.current));
         setBlockMenuOpen(false);
-        setHoveredBlock(null);
+        updateHoveredBlock(null);
       }
       setActiveSlashCommandIndex(0);
     };
@@ -232,7 +265,7 @@ export function FolioEditor(props: FolioEditorProps) {
       editor.off("selectionUpdate", syncSelectionState);
       editor.off("transaction", syncSelectionState);
     };
-  }, [editor]);
+  }, [editor, updateHoveredBlock]);
 
   useEffect(() => {
     if (!activeMenuQuery) return undefined;
@@ -265,7 +298,7 @@ export function FolioEditor(props: FolioEditorProps) {
         return;
       }
 
-      setHoveredBlock(null);
+      updateHoveredBlock(null);
 
       if (event.key === "Escape") {
         if (activeMenuQuery) {
@@ -331,6 +364,7 @@ export function FolioEditor(props: FolioEditorProps) {
       displayedSlashCommands,
       runSlashCommand,
       activeMenuQuery,
+      updateHoveredBlock,
     ],
   );
 
@@ -359,14 +393,41 @@ export function FolioEditor(props: FolioEditorProps) {
         return;
       }
 
-      setHoveredBlock(findBlockElement(event.target, editor?.view.dom ?? null));
+      const nextBlock = findBlockElement(event.target, editor?.view.dom ?? null);
+
+      if (nextBlock) {
+        updateHoveredBlock(nextBlock);
+        return;
+      }
+
+      if (
+        isPointInBlockControlsBridge(
+          event,
+          hoveredBlockRef.current,
+          rootRef.current,
+        )
+      ) {
+        return;
+      }
+
+      updateHoveredBlock(null);
     },
-    [editor],
+    [editor, updateHoveredBlock],
   );
 
-  const handleMouseLeave = useCallback(() => {
-    setHoveredBlock(null);
-  }, []);
+  const handleMouseLeave = useCallback((event: MouseEvent<HTMLDivElement>) => {
+    if (
+      isPointInBlockControlsBridge(
+        event,
+        hoveredBlockRef.current,
+        rootRef.current,
+      )
+    ) {
+      return;
+    }
+
+    updateHoveredBlock(null);
+  }, [updateHoveredBlock]);
 
   const handleFocusCapture = useCallback(() => {
     setRootHasFocus(true);
