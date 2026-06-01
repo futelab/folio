@@ -10,4 +10,5 @@ export * from "./FolioReader";
 export * from "./menus/BubbleToolbar";
 export * from "./menus/SlashMenu";
 export * from "./reader/renderers";
+export * from "./tables/TableControls";
 export * from "./useFolioEditor";
