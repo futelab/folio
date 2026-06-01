@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { CSSProperties } from "react";
 import type { KeyboardEvent } from "react";
 import type { Editor } from "@tiptap/core";
@@ -129,12 +129,23 @@ export function SlashMenu({
   onCommandSelect,
   onRequestClose,
 }: SlashMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
   const defaultCommands = useMemo(() => createDefaultFolioCommands(), []);
   const availableCommands = commands ?? defaultCommands;
 
   const filteredCommands = getSlashMenuCommands(availableCommands, query);
   const groupedCommands = groupSlashMenuCommands(filteredCommands);
   const displayedCommands = groupedCommands.flatMap((group) => group.commands);
+
+  useEffect(() => {
+    if (activeIndex === undefined || !menuRef.current) return;
+
+    const activeItem = getMenuItems(menuRef.current)[activeIndex];
+
+    if (typeof activeItem?.scrollIntoView !== "function") return;
+
+    activeItem.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, displayedCommands.length]);
 
   if (!filteredCommands.length) return null;
 
@@ -143,6 +154,7 @@ export function SlashMenu({
       aria-label="Slash commands"
       className={className ?? "folio-slash-menu"}
       onKeyDown={(event) => handleMenuKeyDown(event, onRequestClose)}
+      ref={menuRef}
       role="menu"
       style={style}
     >
