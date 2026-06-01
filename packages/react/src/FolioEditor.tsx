@@ -281,7 +281,9 @@ export function FolioEditor(props: FolioEditorProps) {
   const activeBlock =
     hoveredBlock ??
     (editorHasFocus || rootHasFocus || blockMenuOpen ? focusedBlock : null);
-  const activeMenuQuery = slashQuery ?? (blockMenuOpen ? "/" : undefined);
+  const activeMenuQuery = hasTextSelection
+    ? undefined
+    : (slashQuery ?? (blockMenuOpen ? "/" : undefined));
   const filteredSlashCommands = useMemo(
     () => getSlashMenuCommands(slashCommands, activeMenuQuery),
     [activeMenuQuery, slashCommands],
@@ -334,6 +336,10 @@ export function FolioEditor(props: FolioEditorProps) {
       const selection = editor.state.selection;
       const nextHasTextSelection = isFormattingTextSelection(selection);
 
+      if (nextHasTextSelection) {
+        closeSlashMenu();
+      }
+
       setHasTextSelection(nextHasTextSelection);
       setBubbleToolbarStyle(
         nextHasTextSelection
@@ -367,7 +373,7 @@ export function FolioEditor(props: FolioEditorProps) {
       editor.off("selectionUpdate", syncSelectionState);
       editor.off("transaction", syncSelectionState);
     };
-  }, [editor, updateHoveredBlock]);
+  }, [closeSlashMenu, editor, updateHoveredBlock]);
 
   useEffect(() => {
     if (!activeMenuQuery) return undefined;

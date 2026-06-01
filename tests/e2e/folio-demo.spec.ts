@@ -124,6 +124,53 @@ test("formatting toolbar follows the selected text instead of the editor bottom"
   await expect(editor.locator("strong")).toHaveText("First toolbar target");
 });
 
+test("text selection closes slash commands and only shows the formatting toolbar", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("Selection should own the toolbar");
+  await editor.getByText("Selection should own the toolbar").hover();
+  await page.getByRole("button", { name: "Add block below" }).click();
+  await expect(page.getByRole("menu", { name: "Slash commands" })).toBeVisible();
+
+  const selectedText = await page.evaluate(() => {
+    const paragraph = Array.from(document.querySelectorAll(".ProseMirror p")).find(
+      (element) => element.textContent === "Selection should own the toolbar",
+    );
+    const text = paragraph?.firstChild;
+
+    if (!text?.textContent) {
+      return null;
+    }
+
+    const range = document.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, text.textContent.length);
+    const rect = range.getBoundingClientRect();
+
+    return {
+      endX: rect.right - 2,
+      startX: rect.left + 2,
+      y: rect.top + rect.height / 2,
+    };
+  });
+
+  expect(selectedText).not.toBeNull();
+
+  await page.mouse.move(selectedText!.startX, selectedText!.y);
+  await page.mouse.down();
+  await page.mouse.move(selectedText!.endX, selectedText!.y, { steps: 8 });
+  await page.mouse.up();
+
+  await expect(page.getByRole("menu", { name: "Slash commands" })).toHaveCount(0);
+  await expect(page.getByRole("toolbar", { name: "Text formatting" })).toBeVisible();
+});
+
 test("slash commands open from editor input and filter typed query", async ({ page }) => {
   await page.goto("/");
 
