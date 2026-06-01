@@ -228,3 +228,70 @@ test("block side controls target the hovered block when opening commands", async
   await expect(editor.locator("h1")).toHaveText("Second block");
   await expect(editor.locator("p", { hasText: "First block" })).toBeVisible();
 });
+
+test("block side controls are vertically centered on the active block", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("Centered block");
+
+  const centerDelta = await page.evaluate(() => {
+    const controls = document.querySelector(".folio-block-side-controls");
+    const block = Array.from(document.querySelectorAll(".ProseMirror p")).find(
+      (element) => element.textContent?.includes("Centered block"),
+    );
+
+    if (!(controls instanceof HTMLElement) || !(block instanceof HTMLElement)) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    const controlsRect = controls.getBoundingClientRect();
+    const blockRect = block.getBoundingClientRect();
+    const controlsCenter = controlsRect.top + controlsRect.height / 2;
+    const blockCenter = blockRect.top + blockRect.height / 2;
+
+    return Math.abs(controlsCenter - blockCenter);
+  });
+
+  expect(centerDelta).toBeLessThanOrEqual(1);
+});
+
+test("toggle command renders without native button chrome", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("/toggle");
+  await page.getByRole("menuitem", { name: "Toggle" }).click();
+
+  const toggleStyles = await page.evaluate(() => {
+    const button = document.querySelector(
+      '.ProseMirror [data-type="details"] > button',
+    );
+
+    if (!(button instanceof HTMLElement)) return null;
+
+    const styles = getComputedStyle(button);
+
+    return {
+      appearance: styles.appearance,
+      backgroundColor: styles.backgroundColor,
+      borderStyle: styles.borderStyle,
+      borderWidth: styles.borderWidth,
+      display: styles.display,
+    };
+  });
+
+  expect(toggleStyles).toMatchObject({
+    appearance: "none",
+    backgroundColor: "rgba(0, 0, 0, 0)",
+    borderStyle: "none",
+    borderWidth: "0px",
+    display: "flex",
+  });
+});
