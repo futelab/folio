@@ -25,6 +25,7 @@ import {
   getSlashMenuCommands,
   getSlashMenuDisplayCommands,
 } from "./menus/slashMenuUtils";
+import { focusTableCell, TableControls } from "./tables/TableControls";
 import { useFolioEditor } from "./useFolioEditor";
 import type { UseFolioEditorOptions } from "./useFolioEditor";
 
@@ -57,6 +58,13 @@ function isBlockSideControlsEventTarget(target: EventTarget | null): boolean {
   return (
     target instanceof Element &&
     Boolean(target.closest(".folio-block-side-controls"))
+  );
+}
+
+function isTableControlsEventTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    Boolean(target.closest(".folio-table-controls"))
   );
 }
 
@@ -263,6 +271,20 @@ function isFormattingTextSelection(selection: Selection): boolean {
   return hasText;
 }
 
+function runEditorChain(editor: Editor | null, callback: (chain: any) => any): boolean {
+  try {
+    if (!editor) return false;
+
+    const chain = callback(editor.chain().focus());
+    if (!chain || typeof chain.run !== "function") return false;
+
+    const result = chain.run();
+    return typeof result === "boolean" ? result : false;
+  } catch {
+    return false;
+  }
+}
+
 export function FolioEditor(props: FolioEditorProps) {
   const editor = useFolioEditor(props);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -281,6 +303,10 @@ export function FolioEditor(props: FolioEditorProps) {
   const activeBlock =
     hoveredBlock ??
     (editorHasFocus || rootHasFocus || blockMenuOpen ? focusedBlock : null);
+  const activeTable =
+    activeBlock instanceof HTMLElement && activeBlock.matches("table")
+      ? activeBlock
+      : null;
   const activeMenuQuery = hasTextSelection
     ? undefined
     : (slashQuery ?? (blockMenuOpen ? "/" : undefined));
@@ -535,12 +561,23 @@ export function FolioEditor(props: FolioEditorProps) {
     setActiveSlashCommandIndex(0);
   }, [activeBlock, editor]);
 
+  const handleAddTableRow = useCallback(() => {
+    focusTableCell(editor, activeTable);
+    runEditorChain(editor, (chain) => chain.addRowAfter());
+  }, [activeTable, editor]);
+
+  const handleAddTableColumn = useCallback(() => {
+    focusTableCell(editor, activeTable);
+    runEditorChain(editor, (chain) => chain.addColumnAfter());
+  }, [activeTable, editor]);
+
   const handleMouseDownCapture = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
       if (
         !blockMenuOpen ||
         isSlashMenuEventTarget(event.target) ||
-        isBlockSideControlsEventTarget(event.target)
+        isBlockSideControlsEventTarget(event.target) ||
+        isTableControlsEventTarget(event.target)
       ) {
         return;
       }
@@ -556,7 +593,8 @@ export function FolioEditor(props: FolioEditorProps) {
     (event: MouseEvent<HTMLDivElement>) => {
       if (
         isSlashMenuEventTarget(event.target) ||
-        isBlockSideControlsEventTarget(event.target)
+        isBlockSideControlsEventTarget(event.target) ||
+        isTableControlsEventTarget(event.target)
       ) {
         return;
       }
@@ -636,6 +674,13 @@ export function FolioEditor(props: FolioEditorProps) {
           editorRoot={rootRef.current}
           onOpenBlockMenu={handleOpenBlockMenu}
           sideControlsClassName={props.classNames?.blockControls}
+        />
+        <TableControls
+          editor={editor}
+          editorRoot={rootRef.current}
+          onAddColumn={handleAddTableColumn}
+          onAddRow={handleAddTableRow}
+          table={activeTable}
         />
         {hasTextSelection ? (
           <BubbleToolbar

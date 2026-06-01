@@ -668,3 +668,44 @@ test("toggle disclosure button is centered on the summary first line", async ({
 
   expect(centerDelta).toBeLessThanOrEqual(1);
 });
+
+test("table controls add rows and columns in place", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page" }).click();
+
+  const editor = page.getByRole("textbox").last();
+  await editor.click();
+  await page.keyboard.type("/table");
+  await page.getByRole("menuitem", { exact: true, name: "Table" }).click();
+
+  const table = editor.locator("table");
+  await expect(table).toBeVisible();
+  await table.hover();
+
+  await expect(page.getByRole("button", { name: "Add table row" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add table column" })).toBeVisible();
+
+  const initialShape = await page.evaluate(() => {
+    const tableElement = document.querySelector(".ProseMirror table");
+
+    return {
+      cols: tableElement?.querySelector("tr")?.children.length ?? 0,
+      rows: tableElement?.querySelectorAll("tr").length ?? 0,
+    };
+  });
+
+  await page.getByRole("button", { name: "Add table row" }).click();
+  await page.getByRole("button", { name: "Add table column" }).click();
+
+  const nextShape = await page.evaluate(() => {
+    const tableElement = document.querySelector(".ProseMirror table");
+
+    return {
+      cols: tableElement?.querySelector("tr")?.children.length ?? 0,
+      rows: tableElement?.querySelectorAll("tr").length ?? 0,
+    };
+  });
+
+  expect(nextShape.rows).toBe(initialShape.rows + 1);
+  expect(nextShape.cols).toBe(initialShape.cols + 1);
+});
