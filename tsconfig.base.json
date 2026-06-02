@@ -11,6 +11,12 @@
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@futelab/folio-core": ["packages/core/src/index.ts"],
+      "@futelab/folio-core/browser": ["packages/core/src/browser.ts"],
+      "@futelab/folio-react": ["packages/react/src/index.ts"]
+    },
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",

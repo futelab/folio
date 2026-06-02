@@ -15,16 +15,33 @@ import {
   useFolioEditorContext as internalUseFolioEditorContext,
 } from "../../react/src";
 import type {
+  FolioI18nOptions,
   FolioCommandContribution,
   FolioDocument,
   FolioExtension,
+  FolioMessages,
 } from "./core";
 
 export const folioReactVersion = "0.1.0-alpha.0";
 
+export {
+  createFolioMessages,
+  defaultFolioTranslations,
+} from "./core";
+
+export type {
+  BuiltInFolioLocale,
+  FolioDeepPartial,
+  FolioI18nOptions,
+  FolioLocale,
+  FolioMessages,
+  FolioTranslations,
+} from "./core";
+
 export interface BlockControlsProps {
   editor: Editor | null;
   className?: string;
+  messages?: FolioMessages;
 }
 
 export const BlockControls = InternalBlockControls as (
@@ -35,6 +52,7 @@ export interface BlockInteractionLayerProps {
   activeBlock: HTMLElement | null;
   editorRoot: HTMLElement | null;
   className?: string;
+  messages?: FolioMessages;
   sideControlsClassName?: string;
   onOpenBlockMenu: () => void;
 }
@@ -45,6 +63,7 @@ export const BlockInteractionLayer = InternalBlockInteractionLayer as (
 
 export interface BlockSideControlsProps {
   className?: string;
+  messages?: FolioMessages;
   style?: CSSProperties;
   visible: boolean;
   onAddBlock: () => void;
@@ -57,6 +76,7 @@ export const BlockSideControls = InternalBlockSideControls as (
 export interface FolioDragHandleProps {
   editor: Editor | null;
   className?: string;
+  messages?: FolioMessages;
 }
 
 export const FolioDragHandle = InternalFolioDragHandle as (
@@ -73,7 +93,7 @@ export const FolioEditorContext =
 export const useFolioEditorContext = internalUseFolioEditorContext as
   () => FolioEditorContextValue;
 
-export interface UseFolioEditorOptions {
+export interface UseFolioEditorOptions extends FolioI18nOptions {
   value?: FolioDocument;
   defaultValue?: FolioDocument;
   onChange?: (value: FolioDocument) => void;
@@ -119,6 +139,7 @@ export const FolioReader = InternalFolioReader as (
 export interface BubbleToolbarProps {
   editor: Editor | null;
   className?: string;
+  messages?: FolioMessages;
   style?: CSSProperties;
 }
 
@@ -131,6 +152,7 @@ export interface SlashMenuProps {
   query?: string;
   commands?: FolioCommandContribution[];
   className?: string;
+  messages?: FolioMessages;
   style?: CSSProperties;
   activeIndex?: number;
   onActiveIndexChange?: (index: number) => void;

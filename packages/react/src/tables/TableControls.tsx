@@ -1,10 +1,13 @@
 import type { CSSProperties } from "react";
 import type { Editor } from "@tiptap/core";
 import { Plus } from "lucide-react";
+import type { FolioMessages } from "../i18n";
+import { resolveFolioMessages } from "../i18n";
 
 export interface TableControlsProps {
   editor: Editor | null;
   editorRoot: HTMLElement | null;
+  messages?: FolioMessages;
   table: HTMLElement | null;
   onAddColumn: () => void;
   onAddRow: () => void;
@@ -53,6 +56,7 @@ export function focusTableCell(editor: Editor | null, table: HTMLElement | null)
 export function TableControls({
   editor,
   editorRoot,
+  messages,
   onAddColumn,
   onAddRow,
   table,
@@ -61,24 +65,26 @@ export function TableControls({
 
   if (!editor || !style) return null;
 
+  const labels = resolveFolioMessages({ messages }).ui.tableControls;
+
   return (
     <div className="folio-table-controls" data-testid="folio-table-controls">
       <button
-        aria-label="Add table column"
+        aria-label={labels.addColumnAriaLabel}
         className="folio-table-controls__button folio-table-controls__button--column"
         onClick={onAddColumn}
         style={style.column}
-        title="Add column"
+        title={labels.addColumnTitle}
         type="button"
       >
         <Plus aria-hidden size={14} />
       </button>
       <button
-        aria-label="Add table row"
+        aria-label={labels.addRowAriaLabel}
         className="folio-table-controls__button folio-table-controls__button--row"
         onClick={onAddRow}
         style={style.row}
-        title="Add row"
+        title={labels.addRowTitle}
         type="button"
       >
         <Plus aria-hidden size={14} />

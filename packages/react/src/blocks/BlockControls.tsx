@@ -1,10 +1,13 @@
 import type { Editor } from "@tiptap/core";
 import { Plus } from "lucide-react";
+import type { FolioMessages } from "../i18n";
+import { resolveFolioMessages } from "../i18n";
 import { FolioDragHandle } from "./DragHandle";
 
 export interface BlockControlsProps {
   editor: Editor | null;
   className?: string;
+  messages?: FolioMessages;
 }
 
 function insertParagraph(editor: Editor | null): boolean {
@@ -20,20 +23,22 @@ function insertParagraph(editor: Editor | null): boolean {
   }
 }
 
-export function BlockControls({ editor, className }: BlockControlsProps) {
+export function BlockControls({ editor, className, messages }: BlockControlsProps) {
+  const labels = resolveFolioMessages({ messages }).ui.blockControls;
+
   return (
     <div className={className ?? "folio-block-controls"}>
       <button
-        aria-label="Insert block"
+        aria-label={labels.insertBlock}
         className="folio-block-controls__insert"
         disabled={!editor}
         onClick={() => insertParagraph(editor)}
-        title="Insert block"
+        title={labels.insertBlock}
         type="button"
       >
         <Plus aria-hidden size={16} />
       </button>
-      <FolioDragHandle editor={editor} />
+      <FolioDragHandle editor={editor} messages={messages} />
     </div>
   );
 }

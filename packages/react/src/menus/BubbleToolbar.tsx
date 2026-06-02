@@ -10,10 +10,13 @@ import {
   Strikethrough,
   Underline,
 } from "lucide-react";
+import type { FolioMessages } from "../i18n";
+import { resolveFolioMessages } from "../i18n";
 
 export interface BubbleToolbarProps {
   editor: Editor | null;
   className?: string;
+  messages?: FolioMessages;
   style?: CSSProperties;
 }
 
@@ -46,85 +49,99 @@ function isMarkActive(editor: Editor | null, markName: string): boolean {
   }
 }
 
-function promptForLinkHref(editor: Editor): string | null {
+function promptForLinkHref(editor: Editor, label: string): string | null {
   if (typeof window === "undefined" || typeof window.prompt !== "function") {
     return null;
   }
 
   const currentHref = editor.getAttributes("link").href;
   const href = window.prompt(
-    "Link URL",
+    label,
     typeof currentHref === "string" ? currentHref : "",
   );
 
   return href;
 }
 
-const toolbarActions: ToolbarAction[] = [
-  {
-    label: "Bold",
-    icon: Bold,
-    isActive: (editor) => isMarkActive(editor, "bold"),
-    run: (editor) => runEditorChain(editor, (chain) => chain.toggleBold()),
-  },
-  {
-    label: "Italic",
-    icon: Italic,
-    isActive: (editor) => isMarkActive(editor, "italic"),
-    run: (editor) => runEditorChain(editor, (chain) => chain.toggleItalic()),
-  },
-  {
-    label: "Underline",
-    icon: Underline,
-    isActive: (editor) => isMarkActive(editor, "underline"),
-    run: (editor) => runEditorChain(editor, (chain) => chain.toggleUnderline()),
-  },
-  {
-    label: "Strike",
-    icon: Strikethrough,
-    isActive: (editor) => isMarkActive(editor, "strike"),
-    run: (editor) => runEditorChain(editor, (chain) => chain.toggleStrike()),
-  },
-  {
-    label: "Code",
-    icon: Code,
-    isActive: (editor) => isMarkActive(editor, "code"),
-    run: (editor) => runEditorChain(editor, (chain) => chain.toggleCode()),
-  },
-  {
-    label: "Link",
-    icon: LinkIcon,
-    isActive: (editor) => isMarkActive(editor, "link"),
-    run: (editor) => {
-      const href = promptForLinkHref(editor);
+function createToolbarActions(messages: FolioMessages): ToolbarAction[] {
+  const labels = messages.ui.bubbleToolbar;
 
-      if (href === null) {
-        return false;
-      }
-
-      if (href === "") {
-        return runEditorChain(editor, (chain) =>
-          chain.extendMarkRange("link").unsetLink(),
-        );
-      }
-
-      return runEditorChain(editor, (chain) =>
-        chain.extendMarkRange("link").setLink({ href }),
-      );
+  return [
+    {
+      label: labels.bold,
+      icon: Bold,
+      isActive: (editor) => isMarkActive(editor, "bold"),
+      run: (editor) => runEditorChain(editor, (chain) => chain.toggleBold()),
     },
-  },
-  {
-    label: "Highlight",
-    icon: Highlighter,
-    isActive: (editor) => isMarkActive(editor, "highlight"),
-    run: (editor) => runEditorChain(editor, (chain) => chain.toggleHighlight()),
-  },
-];
+    {
+      label: labels.italic,
+      icon: Italic,
+      isActive: (editor) => isMarkActive(editor, "italic"),
+      run: (editor) => runEditorChain(editor, (chain) => chain.toggleItalic()),
+    },
+    {
+      label: labels.underline,
+      icon: Underline,
+      isActive: (editor) => isMarkActive(editor, "underline"),
+      run: (editor) =>
+        runEditorChain(editor, (chain) => chain.toggleUnderline()),
+    },
+    {
+      label: labels.strike,
+      icon: Strikethrough,
+      isActive: (editor) => isMarkActive(editor, "strike"),
+      run: (editor) => runEditorChain(editor, (chain) => chain.toggleStrike()),
+    },
+    {
+      label: labels.code,
+      icon: Code,
+      isActive: (editor) => isMarkActive(editor, "code"),
+      run: (editor) => runEditorChain(editor, (chain) => chain.toggleCode()),
+    },
+    {
+      label: labels.link,
+      icon: LinkIcon,
+      isActive: (editor) => isMarkActive(editor, "link"),
+      run: (editor) => {
+        const href = promptForLinkHref(editor, labels.linkUrlPrompt);
 
-export function BubbleToolbar({ editor, className, style }: BubbleToolbarProps) {
+        if (href === null) {
+          return false;
+        }
+
+        if (href === "") {
+          return runEditorChain(editor, (chain) =>
+            chain.extendMarkRange("link").unsetLink(),
+          );
+        }
+
+        return runEditorChain(editor, (chain) =>
+          chain.extendMarkRange("link").setLink({ href }),
+        );
+      },
+    },
+    {
+      label: labels.highlight,
+      icon: Highlighter,
+      isActive: (editor) => isMarkActive(editor, "highlight"),
+      run: (editor) =>
+        runEditorChain(editor, (chain) => chain.toggleHighlight()),
+    },
+  ];
+}
+
+export function BubbleToolbar({
+  editor,
+  className,
+  messages,
+  style,
+}: BubbleToolbarProps) {
+  const resolvedMessages = resolveFolioMessages({ messages });
+  const toolbarActions = createToolbarActions(resolvedMessages);
+
   return (
     <div
-      aria-label="Text formatting"
+      aria-label={resolvedMessages.ui.bubbleToolbar.label}
       className={className ?? "folio-bubble-toolbar"}
       role="toolbar"
       style={style}

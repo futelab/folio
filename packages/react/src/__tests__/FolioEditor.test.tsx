@@ -51,6 +51,58 @@ describe("FolioEditor", () => {
     expect(screen.getByRole("menuitem", { name: "Heading 1" })).toBeInTheDocument();
   });
 
+  it("uses built-in Chinese messages for editor UI and slash commands", () => {
+    render(
+      <FolioEditor
+        value={createEmptyFolioDocument()}
+        onChange={vi.fn()}
+        initialSlashQuery="/"
+        locale="zh-CN"
+      />,
+    );
+
+    expect(screen.getByRole("menu", { name: "斜杠菜单" })).toBeInTheDocument();
+    expect(screen.getByText("基础")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "文本" })).toBeInTheDocument();
+    expect(screen.getByText("从普通文本开始")).toBeInTheDocument();
+  });
+
+  it("applies per-instance translations for custom locales", () => {
+    render(
+      <FolioEditor
+        value={createEmptyFolioDocument()}
+        onChange={vi.fn()}
+        initialSlashQuery="/"
+        locale="pirate"
+        translations={{
+          pirate: {
+            ui: {
+              slashMenu: {
+                label: "Command deck",
+                groups: {
+                  Basic: "First mate",
+                },
+              },
+            },
+            commands: {
+              paragraph: {
+                label: "Log entry",
+                description: "Write a ship log",
+                keywords: ["log"],
+              },
+            },
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("menu", { name: "Command deck" })).toBeInTheDocument();
+    expect(screen.getByText("First mate")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Log entry" })).toBeInTheDocument();
+    expect(screen.getByText("Write a ship log")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Heading 1" })).toBeInTheDocument();
+  });
+
   it("does not render slash commands for non-slash queries", () => {
     const { rerender } = render(
       <FolioEditor

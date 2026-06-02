@@ -1,4 +1,6 @@
 import type { FolioCommandContribution } from "../extensions/types";
+import { createFolioMessages } from "../i18n";
+import type { FolioI18nOptions, FolioMessages } from "../i18n";
 
 function runEditorChain(
   editor: unknown,
@@ -25,164 +27,166 @@ function runEditorChain(
 const commandMetadata = {
   paragraph: {
     group: "Basic",
-    description: "Start with plain text",
     icon: "Text",
   },
   heading1: {
     group: "Basic",
-    description: "Large section heading",
     icon: "Heading1",
   },
   heading2: {
     group: "Basic",
-    description: "Medium section heading",
     icon: "Heading2",
   },
   heading3: {
     group: "Basic",
-    description: "Small section heading",
     icon: "Heading3",
   },
   bulletList: {
     group: "Lists",
-    description: "Create a bulleted list",
     icon: "List",
   },
   orderedList: {
     group: "Lists",
-    description: "Create a numbered list",
     icon: "ListOrdered",
   },
   todoList: {
     group: "Lists",
-    description: "Track tasks with checkboxes",
     icon: "ListTodo",
   },
   quote: {
     group: "Advanced",
-    description: "Capture a quote or excerpt",
     icon: "Quote",
   },
   callout: {
     group: "Advanced",
-    description: "Highlight information in a callout",
     icon: "PanelTop",
   },
   divider: {
     group: "Advanced",
-    description: "Add a horizontal divider",
     icon: "Minus",
   },
   codeBlock: {
     group: "Advanced",
-    description: "Write code with formatting",
     icon: "Code",
   },
   table: {
     group: "Advanced",
-    description: "Insert a simple table",
     icon: "Table",
   },
   image: {
     group: "Media",
-    description: "Embed an image by URL",
     icon: "Image",
   },
   bookmark: {
     group: "Media",
-    description: "Save a rich link bookmark",
     icon: "Bookmark",
   },
   toggle: {
     group: "Advanced",
-    description: "Create a collapsible section",
     icon: "PanelTop",
   },
   toc: {
     group: "Advanced",
-    description: "Insert a table of contents",
     icon: "ListTree",
   },
 } satisfies Record<
   string,
   {
     group: NonNullable<FolioCommandContribution["group"]>;
-    description: string;
     icon: NonNullable<FolioCommandContribution["icon"]>;
   }
 >;
 
-export function createDefaultFolioCommands(): FolioCommandContribution[] {
+export interface CreateDefaultFolioCommandsOptions extends FolioI18nOptions {
+  messages?: FolioMessages;
+}
+
+export function createDefaultFolioCommands(
+  options: CreateDefaultFolioCommandsOptions = {},
+): FolioCommandContribution[] {
+  const messages =
+    options.messages ?? createFolioMessages(options.locale, options.translations);
+  const commandMessages = messages.commands;
+
   return [
     {
       name: "paragraph",
-      label: "Text",
+      label: commandMessages.paragraph.label,
       ...commandMetadata.paragraph,
-      keywords: ["paragraph", "plain"],
+      description: commandMessages.paragraph.description,
+      keywords: [...commandMessages.paragraph.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) => chain.setParagraph()),
     },
     {
       name: "heading1",
-      label: "Heading 1",
+      label: commandMessages.heading1.label,
       ...commandMetadata.heading1,
-      keywords: ["h1", "title"],
+      description: commandMessages.heading1.description,
+      keywords: [...commandMessages.heading1.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) => chain.toggleHeading({ level: 1 })),
     },
     {
       name: "heading2",
-      label: "Heading 2",
+      label: commandMessages.heading2.label,
       ...commandMetadata.heading2,
-      keywords: ["h2", "subtitle"],
+      description: commandMessages.heading2.description,
+      keywords: [...commandMessages.heading2.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) => chain.toggleHeading({ level: 2 })),
     },
     {
       name: "heading3",
-      label: "Heading 3",
+      label: commandMessages.heading3.label,
       ...commandMetadata.heading3,
-      keywords: ["h3"],
+      description: commandMessages.heading3.description,
+      keywords: [...commandMessages.heading3.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) => chain.toggleHeading({ level: 3 })),
     },
     {
       name: "bulletList",
-      label: "Bulleted list",
+      label: commandMessages.bulletList.label,
       ...commandMetadata.bulletList,
-      keywords: ["ul", "list"],
+      description: commandMessages.bulletList.description,
+      keywords: [...commandMessages.bulletList.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) => chain.toggleBulletList()),
     },
     {
       name: "orderedList",
-      label: "Numbered list",
+      label: commandMessages.orderedList.label,
       ...commandMetadata.orderedList,
-      keywords: ["ol", "list"],
+      description: commandMessages.orderedList.description,
+      keywords: [...commandMessages.orderedList.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) => chain.toggleOrderedList()),
     },
     {
       name: "todoList",
-      label: "Todo list",
+      label: commandMessages.taskList.label,
       ...commandMetadata.todoList,
-      keywords: ["task", "check"],
+      description: commandMessages.taskList.description,
+      keywords: [...commandMessages.taskList.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) => chain.toggleTaskList()),
     },
     {
       name: "quote",
-      label: "Quote",
+      label: commandMessages.quote.label,
       ...commandMetadata.quote,
-      keywords: ["blockquote"],
+      description: commandMessages.quote.description,
+      keywords: [...commandMessages.quote.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) => chain.toggleBlockquote()),
     },
     {
       name: "callout",
-      label: "Callout",
+      label: commandMessages.callout.label,
       ...commandMetadata.callout,
-      keywords: ["note", "aside"],
+      description: commandMessages.callout.description,
+      keywords: [...commandMessages.callout.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) =>
           chain.insertContent({
@@ -191,7 +195,14 @@ export function createDefaultFolioCommands(): FolioCommandContribution[] {
             content: [
               {
                 type: "paragraph",
-                content: [{ type: "text", text: "Callout" }],
+                content: [
+                  {
+                    type: "text",
+                    text:
+                      commandMessages.callout.defaultText ??
+                      commandMessages.callout.label,
+                  },
+                ],
               },
             ],
           }),
@@ -199,25 +210,28 @@ export function createDefaultFolioCommands(): FolioCommandContribution[] {
     },
     {
       name: "divider",
-      label: "Divider",
+      label: commandMessages.divider.label,
       ...commandMetadata.divider,
-      keywords: ["horizontal", "rule"],
+      description: commandMessages.divider.description,
+      keywords: [...commandMessages.divider.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) => chain.setHorizontalRule()),
     },
     {
       name: "codeBlock",
-      label: "Code block",
+      label: commandMessages.codeBlock.label,
       ...commandMetadata.codeBlock,
-      keywords: ["pre", "code"],
+      description: commandMessages.codeBlock.description,
+      keywords: [...commandMessages.codeBlock.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) => chain.toggleCodeBlock()),
     },
     {
       name: "table",
-      label: "Table",
+      label: commandMessages.table.label,
       ...commandMetadata.table,
-      keywords: ["grid"],
+      description: commandMessages.table.description,
+      keywords: [...commandMessages.table.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) =>
           chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }),
@@ -225,9 +239,10 @@ export function createDefaultFolioCommands(): FolioCommandContribution[] {
     },
     {
       name: "image",
-      label: "Image",
+      label: commandMessages.image.label,
       ...commandMetadata.image,
-      keywords: ["photo", "media"],
+      description: commandMessages.image.description,
+      keywords: [...commandMessages.image.keywords],
       action: ({ editor, attrs }) =>
         runEditorChain(editor, (chain) =>
           chain.setImage({ src: String(attrs?.src ?? "") }),
@@ -235,9 +250,10 @@ export function createDefaultFolioCommands(): FolioCommandContribution[] {
     },
     {
       name: "bookmark",
-      label: "Bookmark",
+      label: commandMessages.bookmark.label,
       ...commandMetadata.bookmark,
-      keywords: ["link", "embed"],
+      description: commandMessages.bookmark.description,
+      keywords: [...commandMessages.bookmark.keywords],
       action: ({ editor, attrs }) =>
         runEditorChain(editor, (chain) =>
           chain.insertContent({
@@ -252,17 +268,19 @@ export function createDefaultFolioCommands(): FolioCommandContribution[] {
     },
     {
       name: "toggle",
-      label: "Toggle",
+      label: commandMessages.toggle.label,
       ...commandMetadata.toggle,
-      keywords: ["details", "collapse"],
+      description: commandMessages.toggle.description,
+      keywords: [...commandMessages.toggle.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) => chain.setDetails()),
     },
     {
       name: "toc",
-      label: "Table of contents",
+      label: commandMessages.toc.label,
       ...commandMetadata.toc,
-      keywords: ["outline"],
+      description: commandMessages.toc.description,
+      keywords: [...commandMessages.toc.keywords],
       action: ({ editor }) =>
         runEditorChain(editor, (chain) =>
           chain.insertContent({ type: "tableOfContents" }),

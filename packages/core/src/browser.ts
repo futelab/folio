@@ -1,6 +1,7 @@
 export * from "./version";
 export * from "./document";
 export * from "./fixtures";
+export * from "./i18n";
 export * from "./extensions/types";
 export * from "./extensions/registry";
 export * from "./extensions/defaultExtensions";

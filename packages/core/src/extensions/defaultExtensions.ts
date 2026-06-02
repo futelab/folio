@@ -16,20 +16,25 @@ import type { FolioExtension } from "./types";
 import { FolioBookmark } from "../nodes/bookmark";
 import { FolioCallout } from "../nodes/callout";
 import { FolioTableOfContentsNode } from "../nodes/toc";
+import { createFolioMessages } from "../i18n";
+import type { FolioI18nOptions, FolioMessages } from "../i18n";
 
 const FolioTableOfContentsController = TableOfContents.extend({
   name: "folioTableOfContentsController",
 });
 
-export interface CreateDefaultTiptapExtensionsOptions {
+export interface CreateDefaultTiptapExtensionsOptions extends FolioI18nOptions {
   folioExtensions?: FolioExtension[];
   placeholder?: string;
   includeMarkdown?: boolean;
+  messages?: FolioMessages;
 }
 
 export function createDefaultTiptapExtensions(
   options: CreateDefaultTiptapExtensionsOptions = {},
 ): Extensions {
+  const messages =
+    options.messages ?? createFolioMessages(options.locale, options.translations);
   const externalExtensions = options.folioExtensions?.flatMap(
     (extension) => extension.tiptapExtensions ?? [],
   );
@@ -58,7 +63,7 @@ export function createDefaultTiptapExtensions(
       },
     }),
     Placeholder.configure({
-      placeholder: options.placeholder ?? "Start writing...",
+      placeholder: options.placeholder ?? messages.ui.placeholder,
     }),
     TextStyle,
     Color,

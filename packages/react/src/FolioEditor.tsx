@@ -28,6 +28,7 @@ import {
   getSlashMenuDisplayCommands,
 } from "./menus/slashMenuUtils";
 import { focusTableCell, TableControls } from "./tables/TableControls";
+import { resolveFolioMessages } from "./i18n";
 import { useFolioEditor } from "./useFolioEditor";
 import type { UseFolioEditorOptions } from "./useFolioEditor";
 
@@ -52,7 +53,11 @@ function classNames(...values: Array<string | undefined>): string {
 function isSlashMenuEventTarget(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement &&
-    Boolean(target.closest('[role="menu"][aria-label="Slash commands"]'))
+    Boolean(
+      target.closest(
+        '[role="menu"].folio-editor__slash-menu, [role="menu"].folio-slash-menu',
+      ),
+    )
   );
 }
 
@@ -458,7 +463,14 @@ export function FolioEditor(props: FolioEditorProps) {
   const editor = useFolioEditor(props);
   const rootRef = useRef<HTMLDivElement>(null);
   const draggedBlockRef = useRef<HTMLElement | null>(null);
-  const slashCommands = useMemo(() => createDefaultFolioCommands(), []);
+  const messages = useMemo(
+    () => resolveFolioMessages(props),
+    [props.locale, props.translations],
+  );
+  const slashCommands = useMemo(
+    () => createDefaultFolioCommands({ messages }),
+    [messages],
+  );
   const [slashQuery, setSlashQuery] = useState(props.initialSlashQuery);
   const [slashMenuStyle, setSlashMenuStyle] = useState<CSSProperties>();
   const [activeSlashCommandIndex, setActiveSlashCommandIndex] = useState(0);
@@ -910,6 +922,7 @@ export function FolioEditor(props: FolioEditorProps) {
         <BlockInteractionLayer
           activeBlock={activeBlock}
           editorRoot={rootRef.current}
+          messages={messages}
           onDragBlockEnd={handleDragBlockEnd}
           onDragBlockStart={handleDragBlockStart}
           onOpenBlockMenu={handleOpenBlockMenu}
@@ -918,6 +931,7 @@ export function FolioEditor(props: FolioEditorProps) {
         <TableControls
           editor={editor}
           editorRoot={rootRef.current}
+          messages={messages}
           onAddColumn={handleAddTableColumn}
           onAddRow={handleAddTableRow}
           table={activeTable}
@@ -929,6 +943,7 @@ export function FolioEditor(props: FolioEditorProps) {
               props.classNames?.bubbleToolbar,
             )}
             editor={editor}
+            messages={messages}
             style={bubbleToolbarStyle}
           />
         ) : null}
@@ -937,6 +952,7 @@ export function FolioEditor(props: FolioEditorProps) {
           activeIndex={activeSlashCommandIndexForMenu}
           commands={filteredSlashCommands}
           editor={editor}
+          messages={messages}
           onActiveIndexChange={setActiveSlashCommandIndex}
           onCommandSelect={handleSlashCommandSelect}
           onRequestClose={closeSlashMenu}

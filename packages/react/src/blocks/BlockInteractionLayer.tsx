@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { DragEvent } from "react";
+import type { FolioMessages } from "../i18n";
 import { BlockSideControls } from "./BlockSideControls";
 import { getBlockAnchor } from "./blockDom";
 
@@ -7,6 +8,7 @@ export interface BlockInteractionLayerProps {
   activeBlock: HTMLElement | null;
   editorRoot: HTMLElement | null;
   className?: string;
+  messages?: FolioMessages;
   sideControlsClassName?: string;
   onDragBlockEnd?: () => void;
   onDragBlockStart?: (event: DragEvent<HTMLButtonElement>) => void;
@@ -40,6 +42,7 @@ export function BlockInteractionLayer({
   activeBlock,
   editorRoot,
   className,
+  messages,
   sideControlsClassName,
   onDragBlockEnd,
   onDragBlockStart,
@@ -51,6 +54,7 @@ export function BlockInteractionLayer({
     <div className={classNames("folio-block-interaction-layer", className)}>
       <BlockSideControls
         className={sideControlsClassName}
+        messages={messages}
         onAddBlock={onOpenBlockMenu}
         onDragBlockEnd={onDragBlockEnd}
         onDragBlockStart={onDragBlockStart}

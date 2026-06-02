@@ -2,10 +2,13 @@ import type { ComponentProps } from "react";
 import type { Editor } from "@tiptap/core";
 import { DragHandle as TiptapDragHandle } from "@tiptap/extension-drag-handle-react";
 import { GripVertical } from "lucide-react";
+import type { FolioMessages } from "../i18n";
+import { resolveFolioMessages } from "../i18n";
 
 export interface FolioDragHandleProps {
   editor: Editor | null;
   className?: string;
+  messages?: FolioMessages;
 }
 
 type TiptapDragHandleEditor = ComponentProps<typeof TiptapDragHandle>["editor"];
@@ -13,17 +16,19 @@ type TiptapDragHandleEditor = ComponentProps<typeof TiptapDragHandle>["editor"];
 function DragButton({
   className,
   disabled,
+  label,
 }: {
   className: string;
   disabled?: boolean;
+  label: string;
 }) {
   return (
     <button
-      aria-label="Drag block"
+      aria-label={label}
       className={className}
       disabled={disabled}
       draggable={!disabled}
-      title="Drag block"
+      title={label}
       type="button"
     >
       <GripVertical aria-hidden size={16} />
@@ -41,9 +46,12 @@ function shouldUseStableFallback(): boolean {
 export function FolioDragHandle({
   editor,
   className = "folio-drag-handle",
+  messages,
 }: FolioDragHandleProps) {
+  const label = resolveFolioMessages({ messages }).ui.blockControls.dragBlock;
+
   if (!editor || shouldUseStableFallback()) {
-    return <DragButton className={className} disabled={!editor} />;
+    return <DragButton className={className} disabled={!editor} label={label} />;
   }
 
   return (
@@ -52,7 +60,7 @@ export function FolioDragHandle({
       editor={editor as TiptapDragHandleEditor}
       nested
     >
-      <DragButton className={`${className}__button`} />
+      <DragButton className={`${className}__button`} label={label} />
     </TiptapDragHandle>
   );
 }

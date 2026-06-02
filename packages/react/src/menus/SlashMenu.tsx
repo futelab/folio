@@ -26,12 +26,15 @@ import {
   getSlashMenuCommands,
   groupSlashMenuCommands,
 } from "./slashMenuUtils";
+import type { FolioMessages } from "../i18n";
+import { resolveFolioMessages } from "../i18n";
 
 export interface SlashMenuProps {
   editor: Editor | null;
   query?: string;
   commands?: FolioCommandContribution[];
   className?: string;
+  messages?: FolioMessages;
   style?: CSSProperties;
   activeIndex?: number;
   onActiveIndexChange?: (index: number) => void;
@@ -118,11 +121,18 @@ function handleMenuKeyDown(
   }
 }
 
+function getGroupLabel(group: string, messages: FolioMessages): string {
+  const groups = messages.ui.slashMenu.groups as Record<string, string>;
+
+  return groups[group] ?? group;
+}
+
 export function SlashMenu({
   editor,
   query,
   commands,
   className,
+  messages,
   style,
   activeIndex,
   onActiveIndexChange,
@@ -130,7 +140,11 @@ export function SlashMenu({
   onRequestClose,
 }: SlashMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const defaultCommands = useMemo(() => createDefaultFolioCommands(), []);
+  const resolvedMessages = resolveFolioMessages({ messages });
+  const defaultCommands = useMemo(
+    () => createDefaultFolioCommands({ messages: resolvedMessages }),
+    [resolvedMessages],
+  );
   const availableCommands = commands ?? defaultCommands;
 
   const filteredCommands = getSlashMenuCommands(availableCommands, query);
@@ -151,7 +165,7 @@ export function SlashMenu({
 
   return (
     <div
-      aria-label="Slash commands"
+      aria-label={resolvedMessages.ui.slashMenu.label}
       className={className ?? "folio-slash-menu"}
       onKeyDown={(event) => handleMenuKeyDown(event, onRequestClose)}
       ref={menuRef}
@@ -160,7 +174,9 @@ export function SlashMenu({
     >
       {groupedCommands.map((group) => (
         <div className="folio-slash-menu__group" key={group.group}>
-          <div className="folio-slash-menu__group-label">{group.group}</div>
+          <div className="folio-slash-menu__group-label">
+            {getGroupLabel(group.group, resolvedMessages)}
+          </div>
           {group.commands.map((command) => {
             const index = displayedCommands.indexOf(command);
             const isActive = index === activeIndex;

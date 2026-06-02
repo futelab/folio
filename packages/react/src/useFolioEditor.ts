@@ -6,8 +6,10 @@ import {
   createEmptyFolioDocument,
 } from "@futelab/folio-core/browser";
 import type { FolioDocument, FolioExtension } from "@futelab/folio-core/browser";
+import type { FolioI18nOptions } from "./i18n";
+import { resolveFolioMessages } from "./i18n";
 
-export interface UseFolioEditorOptions {
+export interface UseFolioEditorOptions extends FolioI18nOptions {
   value?: FolioDocument;
   defaultValue?: FolioDocument;
   onChange?: (value: FolioDocument) => void;
@@ -26,13 +28,18 @@ export function useFolioEditor(options: UseFolioEditorOptions = {}): Editor | nu
   );
   const controlledValue = options.value;
   const editable = options.editable ?? true;
+  const messages = useMemo(
+    () => resolveFolioMessages(options),
+    [options.locale, options.translations],
+  );
   const tiptapExtensions = useMemo(
     () =>
       createDefaultTiptapExtensions({
         folioExtensions: options.extensions,
+        messages,
         placeholder: options.placeholder,
       }),
-    [options.extensions, options.placeholder],
+    [messages, options.extensions, options.placeholder],
   );
 
   const editor = useEditor(

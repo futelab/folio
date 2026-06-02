@@ -7,6 +7,7 @@ export * from "./blocks/DragHandle";
 export * from "./context";
 export * from "./FolioEditor";
 export * from "./FolioReader";
+export * from "./i18n";
 export * from "./menus/BubbleToolbar";
 export * from "./menus/SlashMenu";
 export * from "./reader/renderers";
