@@ -1,5 +1,8 @@
 .superpowers/
 .worktrees/
+docs/superpowers/
+apps/docs/
+storybook-static/
 node_modules/
 dist/
 .turbo/
