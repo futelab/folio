@@ -1,5 +1,11 @@
 # @futelab/folio
 
+## 0.1.2
+
+### Patch Changes
+
+- 6f09f8f: Render editable empty-document hints in paragraph flow instead of an absolute Demo overlay, keeping hints below document actions across locales and viewport sizes. Guard DOM positioning while the editor is temporarily unmounted during controlled content or configuration replacement.
+
 ## 0.1.1
 
 ### Patch Changes
