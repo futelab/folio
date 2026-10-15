@@ -5,8 +5,7 @@ import type { FocusEvent } from "react";
 import type { KeyboardEvent } from "react";
 import type { MouseEvent } from "react";
 import type { Editor } from "@tiptap/core";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { NodeSelection, TextSelection } from "@tiptap/pm/state";
+import { NodeSelection } from "@tiptap/pm/state";
 import type { Selection } from "@tiptap/pm/state";
 import { EditorContent } from "@tiptap/react";
 import {
@@ -15,6 +14,8 @@ import {
   type FolioCommandContribution,
 } from "@futelab/folio-core/browser";
 import { BlockInteractionLayer } from "./blocks/BlockInteractionLayer";
+import { getTopLevelBlockPosition, getTopLevelBlocks, moveBlock } from "./blocks/blockDrag";
+import { useBlockDrag } from "./blocks/useBlockDrag";
 import { findBlockElement, getBlockAnchor, getCurrentBlockElement } from "./blocks/blockDom";
 import { FolioEditorContext } from "./context";
 import { BubbleToolbar } from "./menus/BubbleToolbar";
@@ -314,126 +315,6 @@ function runEditorChain(editor: Editor | null, callback: (chain: any) => any): b
   }
 }
 
-interface BlockPosition {
-  node: ProseMirrorNode;
-  pos: number;
-}
-
-function getDocumentInsertPosition(
-  source: BlockPosition,
-  target: BlockPosition,
-  placement: "before" | "after",
-): number | null {
-  const insertPosition = placement === "after" ? target.pos + target.node.nodeSize : target.pos;
-  const sourceEnd = source.pos + source.node.nodeSize;
-
-  if (insertPosition >= source.pos && insertPosition <= sourceEnd) {
-    return null;
-  }
-
-  return insertPosition > source.pos ? insertPosition - source.node.nodeSize : insertPosition;
-}
-
-function getTopLevelBlockPosition(
-  editor: Editor | null,
-  block: HTMLElement | null,
-): BlockPosition | null {
-  if (!editor || !block || !editor.view.dom.contains(block)) {
-    return null;
-  }
-
-  let topLevelBlock: HTMLElement = block;
-
-  while (topLevelBlock.parentElement && topLevelBlock.parentElement !== editor.view.dom) {
-    topLevelBlock = topLevelBlock.parentElement;
-  }
-
-  if (topLevelBlock.parentElement !== editor.view.dom) {
-    return null;
-  }
-
-  const childIndex = Array.from(editor.view.dom.children).indexOf(topLevelBlock);
-
-  if (childIndex < 0 || childIndex >= editor.state.doc.childCount) {
-    return null;
-  }
-
-  let pos = 0;
-
-  for (let index = 0; index < childIndex; index += 1) {
-    pos += editor.state.doc.child(index).nodeSize;
-  }
-
-  return {
-    node: editor.state.doc.child(childIndex),
-    pos,
-  };
-}
-
-function getDropTargetBlock(
-  event: DragEvent<HTMLElement>,
-  editor: Editor | null,
-): HTMLElement | null {
-  if (!editor) return null;
-
-  const directTarget = findBlockElement(event.target, editor.view.dom);
-
-  if (directTarget) return directTarget;
-
-  const elementAtPoint = editor.view.dom.ownerDocument.elementFromPoint(
-    event.clientX,
-    event.clientY,
-  );
-
-  return findBlockElement(elementAtPoint, editor.view.dom);
-}
-
-function getDropPlacement(
-  event: DragEvent<HTMLElement>,
-  targetBlock: HTMLElement,
-): "before" | "after" {
-  const targetRect = getBlockAnchor(targetBlock).rect;
-  const targetMiddle = targetRect.top + targetRect.height / 2;
-
-  return event.clientY > targetMiddle ? "after" : "before";
-}
-
-function moveBlock(
-  editor: Editor | null,
-  sourceBlock: HTMLElement | null,
-  targetBlock: HTMLElement | null,
-  placement: "before" | "after",
-): boolean {
-  if (!editor?.isEditable || !sourceBlock || !targetBlock || sourceBlock === targetBlock) {
-    return false;
-  }
-
-  const source = getTopLevelBlockPosition(editor, sourceBlock);
-  const target = getTopLevelBlockPosition(editor, targetBlock);
-
-  if (!source || !target || source.pos === target.pos) return false;
-
-  const sourceEnd = source.pos + source.node.nodeSize;
-  const adjustedInsertPosition = getDocumentInsertPosition(source, target, placement);
-
-  if (adjustedInsertPosition === null) return false;
-
-  try {
-    const transaction = editor.state.tr
-      .delete(source.pos, sourceEnd)
-      .insert(adjustedInsertPosition, source.node);
-    const selectionPosition = Math.min(adjustedInsertPosition + 1, transaction.doc.content.size);
-
-    transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
-    editor.view.dispatch(transaction.scrollIntoView());
-    editor.view.focus();
-
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function FolioEditor(props: FolioEditorProps) {
   const onError = props.onError;
   const [editorError, setEditorError] = useState<Error>();
@@ -452,7 +333,12 @@ export function FolioEditor(props: FolioEditorProps) {
     [props.locale, props.labels],
   );
   const rootRef = useRef<HTMLDivElement>(null);
-  const draggedBlockRef = useRef<HTMLElement | null>(null);
+  const {
+    draggedBlock,
+    indicatorRef,
+    start: startBlockDrag,
+    end: endBlockDrag,
+  } = useBlockDrag(editor, rootRef, writable, props.documentId);
   const messages = useMemo(
     () => resolveFolioMessages({ locale: props.locale, translations: props.translations }),
     [props.locale, props.translations],
@@ -504,6 +390,7 @@ export function FolioEditor(props: FolioEditorProps) {
   const connectedFocusedBlock =
     focusedBlock && editorDOM?.contains(focusedBlock) ? focusedBlock : null;
   const activeBlock =
+    draggedBlock ??
     connectedHoveredBlock ??
     (editorHasFocus || rootHasFocus || blockMenuOpen ? connectedFocusedBlock : null);
   const activeTable = activeBlock?.matches("table") ? activeBlock : null;
@@ -540,7 +427,6 @@ export function FolioEditor(props: FolioEditorProps) {
   useEffect(() => {
     setMediaDialog(undefined);
     setMentionRange(undefined);
-    draggedBlockRef.current = null;
   }, [editor, props.documentId]);
 
   useEffect(() => {
@@ -626,7 +512,7 @@ export function FolioEditor(props: FolioEditorProps) {
       const source = activeBlock ?? getCurrentBlockElement(editor);
       const position = getTopLevelBlockPosition(editor, source);
       if (!position) return;
-      const children = Array.from(editor.view.dom.children);
+      const children = getTopLevelBlocks(editor).map(({ element }) => element);
       const sourceElement =
         source && children.find((child) => child === source || child.contains(source));
       const target = sourceElement ? children[children.indexOf(sourceElement) + direction] : null;
@@ -988,63 +874,10 @@ export function FolioEditor(props: FolioEditorProps) {
 
   const handleDragBlockStart = useCallback(
     (event: DragEvent<HTMLButtonElement>) => {
-      if (!writable || !editor || !activeBlock) {
-        event.preventDefault();
-        return;
-      }
-
-      draggedBlockRef.current = activeBlock;
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("application/x-folio-block", "move");
+      closeSlashMenu();
+      startBlockDrag(event, activeBlock);
     },
-    [activeBlock, editor, writable],
-  );
-
-  const handleDragBlockEnd = useCallback(() => {
-    draggedBlockRef.current = null;
-  }, []);
-
-  const handleDragOver = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      if (!writable || !draggedBlockRef.current || !editor) return;
-
-      const targetBlock = getDropTargetBlock(event, editor);
-
-      if (!targetBlock || targetBlock === draggedBlockRef.current) return;
-
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
-    },
-    [editor, writable],
-  );
-
-  const handleDrop = useCallback(
-    (event: DragEvent<HTMLDivElement>) => {
-      const sourceBlock = draggedBlockRef.current;
-
-      if (!writable || !sourceBlock || !editor) return;
-
-      const targetBlock = getDropTargetBlock(event, editor);
-
-      if (!targetBlock) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      const moved = moveBlock(
-        editor,
-        sourceBlock,
-        targetBlock,
-        getDropPlacement(event, targetBlock),
-      );
-
-      draggedBlockRef.current = null;
-
-      if (moved) {
-        updateHoveredBlock(targetBlock);
-      }
-    },
-    [editor, updateHoveredBlock, writable],
+    [activeBlock, startBlockDrag, closeSlashMenu],
   );
 
   const handleMouseDownCapture = useCallback(
@@ -1067,6 +900,7 @@ export function FolioEditor(props: FolioEditorProps) {
 
   const handleMouseMove = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
+      if (draggedBlock) return;
       if (
         isSlashMenuEventTarget(event.target) ||
         isBlockSideControlsEventTarget(event.target) ||
@@ -1092,11 +926,12 @@ export function FolioEditor(props: FolioEditorProps) {
 
       updateHoveredBlock(null);
     },
-    [activeTable, editor, updateHoveredBlock],
+    [activeTable, draggedBlock, editor, updateHoveredBlock],
   );
 
   const handleMouseLeave = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
+      if (draggedBlock) return;
       if (
         isPointInBlockControlsBridge(event, hoveredBlockRef.current, rootRef.current) ||
         isPointInTableControlsBridge(event, activeTable, rootRef.current)
@@ -1106,7 +941,7 @@ export function FolioEditor(props: FolioEditorProps) {
 
       updateHoveredBlock(null);
     },
-    [activeTable, updateHoveredBlock],
+    [activeTable, draggedBlock, updateHoveredBlock],
   );
 
   const handleFocusCapture = useCallback(() => {
@@ -1131,8 +966,7 @@ export function FolioEditor(props: FolioEditorProps) {
         data-testid="folio-editor"
         onBlurCapture={handleBlurCapture}
         onFocusCapture={handleFocusCapture}
-        onDragOverCapture={handleDragOver}
-        onDropCapture={handleDrop}
+        data-block-dragging={draggedBlock ? "true" : undefined}
         onKeyDownCapture={handleKeyDownCapture}
         onMouseDownCapture={handleMouseDownCapture}
         onMouseLeave={handleMouseLeave}
@@ -1263,13 +1097,23 @@ export function FolioEditor(props: FolioEditorProps) {
             activeBlock={activeBlock}
             editorRoot={rootRef.current}
             messages={messages}
-            onDragBlockEnd={handleDragBlockEnd}
+            onDragBlockEnd={endBlockDrag}
             onDragBlockStart={handleDragBlockStart}
             onOpenBlockMenu={handleOpenBlockMenu}
             sideControlsClassName={props.classNames?.blockControls}
           />
         ) : null}
         {writable ? (
+          <div aria-hidden="true" className="folio-block-drag-layer">
+            <div
+              ref={indicatorRef}
+              aria-hidden="true"
+              className="folio-block-drop-indicator"
+              style={{ visibility: "hidden" }}
+            />
+          </div>
+        ) : null}
+        {writable && !draggedBlock ? (
           <TableControls
             editor={editor}
             editorRoot={rootRef.current}
@@ -1279,7 +1123,7 @@ export function FolioEditor(props: FolioEditorProps) {
             table={activeTable}
           />
         ) : null}
-        {writable && hasTextSelection && !mediaDialog && !mentionRange ? (
+        {writable && !draggedBlock && hasTextSelection && !mediaDialog && !mentionRange ? (
           <BubbleToolbar
             className={classNames("folio-editor__bubble-toolbar", props.classNames?.bubbleToolbar)}
             editor={editor}

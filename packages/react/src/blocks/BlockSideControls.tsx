@@ -54,7 +54,7 @@ export function BlockSideControls({
       </button>
       <button
         aria-label={labels.dragBlock}
-        className="folio-block-side-controls__button"
+        className="folio-block-side-controls__button folio-block-side-controls__button--drag"
         draggable
         onDragEnd={onDragBlockEnd}
         onDragStart={onDragBlockStart}

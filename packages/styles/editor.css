@@ -323,6 +323,73 @@
   outline: none;
 }
 
+.folio-block-side-controls__button--drag {
+  cursor: grab;
+  touch-action: none;
+}
+
+.folio-editor[data-block-dragging="true"] .folio-block-side-controls__button--drag {
+  background: var(--folio-color-selected);
+  color: var(--folio-color-accent);
+  cursor: grabbing;
+}
+
+.folio-editor[data-block-dragging="true"]
+  .folio-block-side-controls__button:not(.folio-block-side-controls__button--drag) {
+  visibility: hidden;
+}
+
+.folio-editor .ProseMirror [data-folio-drag-source="true"] {
+  background-color: var(--folio-color-selected);
+  border-radius: var(--folio-radius-sm);
+  opacity: 0.45;
+}
+
+.folio-block-drag-layer {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 16;
+}
+
+.folio-block-drop-indicator {
+  background: var(--folio-color-accent);
+  border-radius: 2px;
+  height: 3px;
+  pointer-events: none;
+  position: absolute;
+  transform: translateY(-50%);
+}
+
+.folio-block-drop-indicator::before {
+  background: inherit;
+  border-radius: 50%;
+  content: "";
+  height: 7px;
+  left: -3px;
+  position: absolute;
+  top: -2px;
+  width: 7px;
+}
+
+.folio-block-drag-preview {
+  background: var(--folio-color-bg);
+  border: 1px solid var(--folio-color-border);
+  border-radius: var(--folio-radius-md);
+  box-shadow: var(--folio-shadow-menu);
+  left: -10000px;
+  max-height: 260px;
+  overflow: hidden;
+  padding: 8px 12px;
+  pointer-events: none;
+  position: fixed;
+  top: 0;
+}
+
+.folio-block-drag-preview__content {
+  min-height: 0;
+}
+
 .folio-block-controls,
 .folio-editor__block-controls,
 .folio-bubble-toolbar,

@@ -1,8 +1,60 @@
 import { expect, test } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => window.localStorage.clear());
 });
+
+async function openDragDocument(page: Page, paragraphs: string[]) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page", exact: true }).click();
+  await page.getByLabel("Import document file", { exact: true }).setInputFiles({
+    name: "block-drag-fixture.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        type: "doc",
+        content: paragraphs.map((text) => ({
+          type: "paragraph",
+          content: [{ type: "text", text }],
+        })),
+      }),
+    ),
+  });
+  const editor = page.getByTestId("folio-editor").locator(".ProseMirror");
+  await expect(editor.locator(":scope > p")).toHaveText(paragraphs);
+  await page.locator(".folio-demo__topbar").click();
+  return editor;
+}
+
+async function beginBlockDrag(page: Page, source: Locator) {
+  await source.hover();
+  const handle = page.getByRole("button", { name: "Drag block", exact: true });
+  await expect(handle).toBeVisible();
+  await expect(handle).toHaveAttribute("draggable", "true");
+  const handleBox = await handle.boundingBox();
+  expect(handleBox).not.toBeNull();
+  const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
+  await handle.dispatchEvent("dragstart", {
+    clientX: handleBox!.x + handleBox!.width / 2,
+    clientY: handleBox!.y + handleBox!.height / 2,
+    dataTransfer,
+  });
+  return { dataTransfer, handle, handleBox: handleBox! };
+}
+
+async function scrollAfterAnimationFrames(page: Page, selector?: string) {
+  return page.evaluate(async (scrollSelector) => {
+    // Observe several actual animation frames so a leaked drag scroll loop has
+    // time to move, without tying the assertion to a fixed wall-clock delay.
+    for (let frame = 0; frame < 6; frame += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+    return scrollSelector
+      ? document.querySelector<HTMLElement>(scrollSelector)!.scrollTop
+      : window.scrollY;
+  }, selector);
+}
 
 test("demo presents a complete Notion-like editing workspace", async ({ page }) => {
   await page.goto("/");
@@ -574,49 +626,238 @@ test("block side controls insert below the hovered block without converting it",
 });
 
 test("drag handle reorders top-level blocks", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "New page" }).click();
+  const paragraphs = ["First drag block", "Second drag block", "Third drag block"];
+  const editor = await openDragDocument(page, paragraphs);
+  const source = editor.getByText(paragraphs[0], { exact: true });
+  const { dataTransfer, handle, handleBox } = await beginBlockDrag(page, source);
+  const dragSource = page.locator('[data-folio-drag-source="true"]');
+  await expect(dragSource).toHaveText(paragraphs[0]);
+  const preview = page.locator(".folio-block-drag-preview");
+  await expect(preview).toBeAttached();
+  await expect(preview).toHaveText(paragraphs[0]);
 
-  const editor = page.getByRole("textbox").last();
-  await editor.click();
-  await page.keyboard.type("First drag block");
-  await page.keyboard.press("Enter");
-  await page.keyboard.type("Second drag block");
-  await page.keyboard.press("Enter");
-  await page.keyboard.type("Third drag block");
-  await page.locator(".folio-demo__topbar").click();
-
-  await editor.getByText("First drag block").hover();
-
-  const dragHandle = page.getByRole("button", { name: "Drag block" });
+  // Moving across other blocks must not retarget the source handle mid-drag.
   const secondBlock = editor.getByText("Second drag block");
+  await secondBlock.hover();
   const secondBlockBox = await secondBlock.boundingBox();
-
   expect(secondBlockBox).not.toBeNull();
-
-  const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
-
-  await dragHandle.dispatchEvent("dragstart", { dataTransfer });
-  await secondBlock.dispatchEvent("dragover", {
+  const nextHandleBox = await handle.boundingBox();
+  expect(nextHandleBox).not.toBeNull();
+  expect(nextHandleBox!.x).toBeCloseTo(handleBox.x, 0);
+  expect(nextHandleBox!.y).toBeCloseTo(handleBox.y, 0);
+  await expect(dragSource).toHaveText(paragraphs[0]);
+  const dropPoint = {
     clientX: secondBlockBox!.x + secondBlockBox!.width / 2,
     clientY: secondBlockBox!.y + secondBlockBox!.height - 1,
     dataTransfer,
-  });
-  await secondBlock.dispatchEvent("drop", {
-    clientX: secondBlockBox!.x + secondBlockBox!.width / 2,
-    clientY: secondBlockBox!.y + secondBlockBox!.height - 1,
-    dataTransfer,
-  });
+  };
+  await secondBlock.dispatchEvent("dragover", dropPoint);
+  const indicator = page.locator(".folio-block-drop-indicator");
+  await expect(indicator).toBeVisible();
+  await expect(indicator).toHaveAttribute("aria-hidden", "true");
+  const indicatorBox = await indicator.boundingBox();
+  expect(indicatorBox).not.toBeNull();
+  expect(Math.abs(indicatorBox!.x - secondBlockBox!.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(indicatorBox!.width - secondBlockBox!.width)).toBeLessThanOrEqual(2);
+  const indicatorColor = await indicator.evaluate((element) =>
+    getComputedStyle(element)
+      .backgroundColor.match(/[\d.]+/g)
+      ?.map(Number),
+  );
+  expect(indicatorColor).toBeDefined();
+  expect(indicatorColor![2]).toBeGreaterThan(indicatorColor![0]);
+  await secondBlock.dispatchEvent("drop", dropPoint);
+  await handle.dispatchEvent("dragend", { dataTransfer });
+  await dataTransfer.dispose();
 
-  const blockTexts = await editor
-    .locator("p")
-    .evaluateAll((blocks) => blocks.map((block) => block.textContent?.trim()).filter(Boolean));
-
-  expect(blockTexts.slice(0, 3)).toEqual([
-    "Second drag block",
-    "First drag block",
-    "Third drag block",
+  await expect(editor.locator(":scope > p")).toHaveText([
+    paragraphs[1],
+    paragraphs[0],
+    paragraphs[2],
   ]);
+  await expect(indicator).toBeHidden();
+  await expect(dragSource).toHaveCount(0);
+  await expect(preview).toHaveCount(0);
+  await editor.click();
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+Z" : "Control+Z");
+  await expect(editor.locator(":scope > p")).toHaveText(paragraphs);
+});
+
+test("block dragging accepts paragraph gaps and document edge targets", async ({ page }) => {
+  const paragraphs = ["First boundary block", "Second boundary block", "Third boundary block"];
+  const editor = await openDragDocument(page, paragraphs);
+  const surface = page.getByTestId("folio-editor");
+
+  const gapDrag = await beginBlockDrag(page, editor.getByText(paragraphs[0], { exact: true }));
+  const secondBox = await editor.getByText(paragraphs[1], { exact: true }).boundingBox();
+  const thirdBox = await editor.getByText(paragraphs[2], { exact: true }).boundingBox();
+  expect(secondBox).not.toBeNull();
+  expect(thirdBox).not.toBeNull();
+  expect(thirdBox!.y).toBeGreaterThan(secondBox!.y + secondBox!.height);
+  const gapPoint = {
+    clientX: secondBox!.x + secondBox!.width / 2,
+    clientY: (secondBox!.y + secondBox!.height + thirdBox!.y) / 2,
+    dataTransfer: gapDrag.dataTransfer,
+  };
+  await surface.dispatchEvent("dragover", gapPoint);
+  await expect(page.locator(".folio-block-drop-indicator")).toBeVisible();
+  const gapIndicator = await page.locator(".folio-block-drop-indicator").boundingBox();
+  expect(gapIndicator).not.toBeNull();
+  expect(
+    Math.abs(gapIndicator!.y + gapIndicator!.height / 2 - gapPoint.clientY),
+  ).toBeLessThanOrEqual(2);
+  await surface.dispatchEvent("drop", gapPoint);
+  await gapDrag.handle.dispatchEvent("dragend", { dataTransfer: gapDrag.dataTransfer });
+  await gapDrag.dataTransfer.dispose();
+  await expect(editor.locator(":scope > p")).toHaveText([
+    paragraphs[1],
+    paragraphs[0],
+    paragraphs[2],
+  ]);
+
+  const firstDrag = await beginBlockDrag(page, editor.getByText(paragraphs[2], { exact: true }));
+  const firstBox = await editor.locator(":scope > p").first().boundingBox();
+  expect(firstBox).not.toBeNull();
+  const firstPoint = {
+    clientX: firstBox!.x + firstBox!.width / 2,
+    clientY: firstBox!.y - 8,
+    dataTransfer: firstDrag.dataTransfer,
+  };
+  await surface.dispatchEvent("dragover", firstPoint);
+  await expect(page.locator(".folio-block-drop-indicator")).toBeVisible();
+  await surface.dispatchEvent("drop", firstPoint);
+  await firstDrag.handle.dispatchEvent("dragend", { dataTransfer: firstDrag.dataTransfer });
+  await firstDrag.dataTransfer.dispose();
+  await expect(editor.locator(":scope > p")).toHaveText([
+    paragraphs[2],
+    paragraphs[1],
+    paragraphs[0],
+  ]);
+
+  const lastDrag = await beginBlockDrag(page, editor.getByText(paragraphs[2], { exact: true }));
+  const lastBox = await editor.locator(":scope > p").last().boundingBox();
+  expect(lastBox).not.toBeNull();
+  const lastPoint = {
+    clientX: lastBox!.x + lastBox!.width / 2,
+    clientY: lastBox!.y + lastBox!.height + 16,
+    dataTransfer: lastDrag.dataTransfer,
+  };
+  await editor.dispatchEvent("dragover", lastPoint);
+  await expect(page.locator(".folio-block-drop-indicator")).toBeVisible();
+  await editor.dispatchEvent("drop", lastPoint);
+  await lastDrag.handle.dispatchEvent("dragend", { dataTransfer: lastDrag.dataTransfer });
+  await lastDrag.dataTransfer.dispose();
+  await expect(editor.locator(":scope > p")).toHaveText([
+    paragraphs[1],
+    paragraphs[0],
+    paragraphs[2],
+  ]);
+});
+
+test("Escape cancels block dragging and ignores the remaining native drop", async ({ page }) => {
+  const paragraphs = ["Keep first block", "Keep second block", "Keep third block"];
+  const editor = await openDragDocument(page, paragraphs);
+  const drag = await beginBlockDrag(page, editor.getByText(paragraphs[0], { exact: true }));
+  const lastBox = await editor.locator(":scope > p").last().boundingBox();
+  expect(lastBox).not.toBeNull();
+  const dropPoint = {
+    clientX: lastBox!.x + lastBox!.width / 2,
+    clientY: lastBox!.y + lastBox!.height - 1,
+    dataTransfer: drag.dataTransfer,
+  };
+  await editor.dispatchEvent("dragover", dropPoint);
+  await expect(page.locator(".folio-block-drop-indicator")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".folio-block-drop-indicator")).toBeHidden();
+  await expect(page.locator('[data-folio-drag-source="true"]')).toHaveCount(0);
+  await expect(page.locator(".folio-block-drag-preview")).toHaveCount(0);
+  await editor.dispatchEvent("dragover", dropPoint);
+  await editor.dispatchEvent("drop", dropPoint);
+  await drag.handle.dispatchEvent("dragend", { dataTransfer: drag.dataTransfer });
+  await drag.dataTransfer.dispose();
+  await expect(editor.locator(":scope > p")).toHaveText(paragraphs);
+
+  const nextDrag = await beginBlockDrag(page, editor.getByText(paragraphs[0], { exact: true }));
+  await editor.dispatchEvent("dragover", { ...dropPoint, dataTransfer: nextDrag.dataTransfer });
+  await editor.dispatchEvent("drop", { ...dropPoint, dataTransfer: nextDrag.dataTransfer });
+  await nextDrag.handle.dispatchEvent("dragend", { dataTransfer: nextDrag.dataTransfer });
+  await nextDrag.dataTransfer.dispose();
+  await expect(editor.locator(":scope > p")).toHaveText([
+    paragraphs[1],
+    paragraphs[2],
+    paragraphs[0],
+  ]);
+});
+
+test("block dragging auto-scrolls the viewport in both directions and stops on dragend", async ({
+  page,
+}) => {
+  const paragraphs = Array.from(
+    { length: 48 },
+    (_, index) => `Viewport drag paragraph ${index + 1}`,
+  );
+  const editor = await openDragDocument(page, paragraphs);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const drag = await beginBlockDrag(page, editor.getByText(paragraphs[0], { exact: true }));
+  const editorBox = await editor.boundingBox();
+  expect(editorBox).not.toBeNull();
+  const viewport = page.viewportSize()!;
+  const clientX = editorBox!.x + editorBox!.width / 2;
+  await editor.dispatchEvent("dragover", {
+    clientX,
+    clientY: viewport.height - 3,
+    dataTransfer: drag.dataTransfer,
+  });
+  // Move the document's top above the viewport before targeting its upper edge;
+  // otherwise that point legitimately belongs to the page toolbar, not the editor.
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(editorBox!.y + 120);
+  const downScroll = await page.evaluate(() => window.scrollY);
+  await editor.dispatchEvent("dragover", { clientX, clientY: 3, dataTransfer: drag.dataTransfer });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(downScroll - 40);
+  await drag.handle.dispatchEvent("dragend", { dataTransfer: drag.dataTransfer });
+  const stoppedScroll = await page.evaluate(() => window.scrollY);
+  expect(await scrollAfterAnimationFrames(page)).toBe(stoppedScroll);
+  await drag.dataTransfer.dispose();
+  await expect(editor.locator(":scope > p")).toHaveText(paragraphs);
+  await expect(page.locator(".folio-block-drop-indicator")).toBeHidden();
+});
+
+test("block dragging auto-scrolls a nested editor container without scrolling the page", async ({
+  page,
+}) => {
+  const paragraphs = Array.from({ length: 48 }, (_, index) => `Nested drag paragraph ${index + 1}`);
+  await page.setViewportSize({ width: 1100, height: 950 });
+  const editor = await openDragDocument(page, paragraphs);
+  const scrollSelector = ".folio-demo__editor-frame";
+  const scrollContainer = page.locator(scrollSelector);
+  await scrollContainer.evaluate((element) => {
+    Object.assign((element as HTMLElement).style, {
+      height: "340px",
+      maxHeight: "340px",
+      overflow: "auto",
+      overscrollBehavior: "contain",
+    });
+  });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const drag = await beginBlockDrag(page, editor.getByText(paragraphs[0], { exact: true }));
+  const scrollBox = await scrollContainer.boundingBox();
+  expect(scrollBox).not.toBeNull();
+  const pageScroll = await page.evaluate(() => window.scrollY);
+  await editor.dispatchEvent("dragover", {
+    clientX: scrollBox!.x + scrollBox!.width / 2,
+    clientY: scrollBox!.y + scrollBox!.height - 3,
+    dataTransfer: drag.dataTransfer,
+  });
+  await expect
+    .poll(() => scrollContainer.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(120);
+  expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll);
+  await drag.handle.dispatchEvent("dragend", { dataTransfer: drag.dataTransfer });
+  const stoppedScroll = await scrollContainer.evaluate((element) => element.scrollTop);
+  expect(await scrollAfterAnimationFrames(page, scrollSelector)).toBe(stoppedScroll);
+  await drag.dataTransfer.dispose();
+  await expect(editor.locator(":scope > p")).toHaveText(paragraphs);
+  await expect(page.locator(".folio-block-drag-preview")).toHaveCount(0);
 });
 
 test("block side controls are vertically centered on the first line", async ({ page }) => {

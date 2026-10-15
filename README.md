@@ -64,7 +64,7 @@ ESM and CommonJS include matching declaration files. Next.js editors belong in a
 - `locale="zh-CN"`, `translations` and `labels` customize messages. `placeholder`, `className` and `classNames` customize presentation.
 - `useFolioEditor` exposes the underlying editor for custom shells. Standalone menus and controls are also exported.
 
-Block `+` inserts a paragraph below the current top-level block. Drag or use Alt+Shift+ArrowUp/ArrowDown and the document action buttons to reorder it. Table edge buttons append to the end; focused-table actions manage rows, columns, headers and cell merging.
+Block `+` inserts a paragraph below the current top-level block. Hover a block and drag its six-dot handle to reorder it. A blue line shows the insertion position, including gaps and the start/end of the document; the source stays highlighted and the native drag preview follows the pointer. Hold near the viewport or a scroll container's top/bottom edge to scroll, and press Escape to cancel. Lists, callouts, toggles and tables move as complete top-level blocks with their content and attributes preserved. Each move is a separate undo step. Alt+Shift+ArrowUp/ArrowDown and the document action buttons provide keyboard/touch alternatives. Drag reordering stays within the same editor/document; columns and nested reparenting are not supported. Table edge buttons append to the end; focused-table actions manage rows, columns, headers and cell merging.
 
 ## Safe persistence and recovery
 
