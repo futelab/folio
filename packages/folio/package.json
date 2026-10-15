@@ -1,6 +1,6 @@
 {
   "name": "@futelab/folio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Composable React document editor and server-renderable reader built on Tiptap",
   "homepage": "https://futelab.github.io/folio/",
   "bugs": {
