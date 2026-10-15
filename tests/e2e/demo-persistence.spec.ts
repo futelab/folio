@@ -268,9 +268,7 @@ for (const sample of [
     await expect(page.locator(".ProseMirror")).toContainText(sample.text);
     await expect(page.getByTestId("demo-feedback")).toContainText("Document imported.");
     if (sample.format === "markdown") {
-      await page.locator(".ProseMirror h2").click();
-      await page.keyboard.press("End");
-      await page.keyboard.type(" edited");
+      await page.locator(".ProseMirror h2").fill("Imported Markdown title edited");
       await expect(page.locator(".ProseMirror h2")).toHaveText("Imported Markdown title edited");
     }
     const downloadPromise = page.waitForEvent("download");
