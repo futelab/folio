@@ -4,6 +4,13 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # DTS bundling requires the JavaScript compiler API supplied by TypeScript 6.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # Follow the Node 24 runtime used in development and CI.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       tiptap:
         patterns: ["@tiptap/*"]

@@ -156,6 +156,58 @@ test("changing the locale translates the demo and editor without replacing conte
   await expect(page.getByRole("button", { name: "Image", exact: true })).toBeVisible();
 });
 
+test("a 390px workspace keeps multilingual read-only tools within the viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  // A third page makes the horizontal page strip wider than the viewport.
+  await page.getByRole("button", { name: "New page", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Page title", exact: true })
+    .fill("窄屏页面与较长的页面标题");
+  await page.locator(".ProseMirror").click();
+  await page.keyboard.insertText("窄屏文档内容");
+
+  async function expectViewportContained() {
+    const geometry = await page.evaluate(() => {
+      const targets = Array.from(
+        document.querySelectorAll(
+          ".folio-demo__sidebar, .folio-demo__tools, .folio-demo__tools select, .folio-demo__file-actions button, .folio-demo__toggle",
+        ),
+      );
+      return {
+        viewport: window.innerWidth,
+        pageWidth: document.documentElement.scrollWidth,
+        bounds: targets.map((element) => ({
+          name: element.className || element.tagName,
+          left: element.getBoundingClientRect().left,
+          right: element.getBoundingClientRect().right,
+        })),
+      };
+    });
+    expect(geometry.viewport).toBe(390);
+    expect(geometry.pageWidth).toBeLessThanOrEqual(390);
+    for (const bound of geometry.bounds) {
+      expect(bound.left, `${bound.name} starts inside the viewport`).toBeGreaterThanOrEqual(0);
+      expect(bound.right, `${bound.name} ends inside the viewport`).toBeLessThanOrEqual(390);
+    }
+  }
+
+  await expectViewportContained();
+  await page.getByRole("combobox", { name: "Language", exact: true }).selectOption("zh-CN");
+  await page.getByRole("switch", { name: "只读", exact: true }).check();
+  await expect(page.getByRole("switch", { name: "只读", exact: true })).toBeChecked();
+  await expectViewportContained();
+  const pageStrip = await page
+    .locator(".folio-demo__page-list")
+    .evaluate((element) => ({ content: element.scrollWidth, available: element.clientWidth }));
+  expect(pageStrip.content).toBeGreaterThan(pageStrip.available);
+  await page.getByTitle("预览", { exact: true }).click();
+  await expect(page.getByTestId("folio-reader")).toBeVisible();
+  await expectViewportContained();
+});
+
 test("unsupported Markdown export reports the loss and preserves the current document", async ({
   page,
 }) => {
