@@ -166,7 +166,7 @@ function getSlashMenuPosition(
 ): CSSProperties | undefined {
   const selection = editor?.state.selection;
 
-  if (!editor || !rootElement || !selection?.empty) return undefined;
+  if (!editor || editor.isDestroyed || !rootElement || !selection?.empty) return undefined;
 
   const coords = editor.view.coordsAtPos(selection.from);
   const rootRect = rootElement.getBoundingClientRect();
@@ -243,7 +243,13 @@ function getBubbleToolbarPosition(
 ): CSSProperties | undefined {
   const selection = editor?.state.selection;
 
-  if (!editor || !rootElement || !selection || !isFormattingTextSelection(selection)) {
+  if (
+    !editor ||
+    editor.isDestroyed ||
+    !rootElement ||
+    !selection ||
+    !isFormattingTextSelection(selection)
+  ) {
     return undefined;
   }
 
@@ -439,7 +445,8 @@ export function FolioEditor(props: FolioEditorProps) {
     [onError],
   );
   const editor = useFolioEditor({ ...props, onError: reportError });
-  const writable = props.editable !== false && Boolean(editor?.isEditable);
+  const writable =
+    props.editable !== false && Boolean(editor && !editor.isDestroyed && editor.isEditable);
   const labels = useMemo(
     () => resolveEditorLabels(props.locale, props.labels),
     [props.locale, props.labels],
@@ -491,10 +498,11 @@ export function FolioEditor(props: FolioEditorProps) {
     editor: Editor;
   }>();
   const [mentionRange, setMentionRange] = useState<{ from: number; to: number; query: string }>();
+  const editorDOM = editor && !editor.isDestroyed ? editor.view.dom : null;
   const connectedHoveredBlock =
-    hoveredBlock && editor?.view.dom.contains(hoveredBlock) ? hoveredBlock : null;
+    hoveredBlock && editorDOM?.contains(hoveredBlock) ? hoveredBlock : null;
   const connectedFocusedBlock =
-    focusedBlock && editor?.view.dom.contains(focusedBlock) ? focusedBlock : null;
+    focusedBlock && editorDOM?.contains(focusedBlock) ? focusedBlock : null;
   const activeBlock =
     connectedHoveredBlock ??
     (editorHasFocus || rootHasFocus || blockMenuOpen ? connectedFocusedBlock : null);

@@ -333,15 +333,6 @@ select {
   position: relative;
 }
 
-.folio-demo__editor-placeholder {
-  color: #9c9790;
-  left: 0;
-  line-height: 1.6;
-  pointer-events: none;
-  position: absolute;
-  top: 0.25rem;
-}
-
 .folio-demo__document .folio-editor {
   background: transparent;
   min-height: 58vh;

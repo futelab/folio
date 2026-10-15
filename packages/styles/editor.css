@@ -41,6 +41,14 @@
   margin: 0.35rem 0;
 }
 
+.folio-editor .ProseMirror[contenteditable="true"] > p.is-editor-empty:first-child::before {
+  color: var(--folio-color-subtle);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
 .folio-editor .ProseMirror h1,
 .folio-editor .ProseMirror h2,
 .folio-editor .ProseMirror h3 {

@@ -37,6 +37,57 @@ describe("FolioEditor", () => {
     expect(screen.getByRole("textbox")).toBeInTheDocument();
   });
 
+  it.each([
+    { locale: "en", placeholder: "Start writing, or type / for commands" },
+    { locale: "zh-CN", placeholder: "开始输入，或输入 / 打开命令菜单" },
+  ])(
+    "keeps the $locale empty-document hint on the first paragraph, away from document actions",
+    async ({ locale, placeholder }) => {
+      const { container, rerender } = render(
+        <FolioEditor
+          locale={locale}
+          placeholder={placeholder}
+          value={createEmptyFolioDocument()}
+        />,
+      );
+      await waitFor(() =>
+        expect(container.querySelector(".ProseMirror > p")).toHaveAttribute(
+          "data-placeholder",
+          placeholder,
+        ),
+      );
+      expect(container.querySelector(".ProseMirror > p")).toHaveClass("is-editor-empty");
+      expect(container.querySelector(".folio-editor-actions [data-placeholder]")).toBeNull();
+      expect(screen.queryByText(placeholder, { exact: true })).toBeNull();
+
+      rerender(
+        <FolioEditor
+          locale={locale}
+          placeholder={placeholder}
+          value={documentWithText("A real first paragraph")}
+        />,
+      );
+      await waitFor(() => expect(screen.getByText("A real first paragraph")).toBeInTheDocument());
+      expect(container.querySelector(".ProseMirror [data-placeholder]")).toBeNull();
+
+      rerender(
+        <FolioEditor
+          editable={false}
+          locale={locale}
+          placeholder={placeholder}
+          value={createEmptyFolioDocument()}
+        />,
+      );
+      await waitFor(() =>
+        expect(container.querySelector(".ProseMirror")).toHaveAttribute("contenteditable", "false"),
+      );
+      expect(
+        container.querySelector('.ProseMirror[contenteditable="true"] [data-placeholder]'),
+      ).toBeNull();
+      expect(container.querySelector(".folio-editor-actions")).toBeNull();
+    },
+  );
+
   it("renders slash commands for an initial slash query", () => {
     render(
       <FolioEditor value={createEmptyFolioDocument()} onChange={vi.fn()} initialSlashQuery="/" />,

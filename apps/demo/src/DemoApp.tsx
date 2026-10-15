@@ -494,14 +494,6 @@ function updatePageTitle(pages: DemoPage[], pageId: string, title: string): Demo
   );
 }
 
-function isDocumentBlank(document: FolioDocument): boolean {
-  const blocks = document.content ?? [];
-
-  return (
-    blocks.length === 1 && blocks[0]?.type === "paragraph" && (blocks[0].content?.length ?? 0) === 0
-  );
-}
-
 export function DemoApp() {
   const [loaded] = useState(loadPages);
   const [pages, setPages] = useState<DemoPage[]>(loaded.pages);
@@ -891,11 +883,6 @@ export function DemoApp() {
             value={selectedPage.title}
           />
           <div className="folio-demo__editor-frame">
-            {isDocumentBlank(selectedPage.document) ? (
-              <span className="folio-demo__editor-placeholder">
-                {readOnly ? "" : copy.placeholder}
-              </span>
-            ) : null}
             <FolioEditor
               classNames={{ slashMenu: "folio-demo__command-menu" }}
               key={selectedPage.id}

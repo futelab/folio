@@ -27,10 +27,54 @@ test("blank page uses a document-first surface with preview collapsed", async ({
   await expect(page.getByRole("complementary", { name: "Preview" })).toHaveCount(0);
   await expect(page.getByPlaceholder("Untitled")).toBeVisible();
   await expect(page.getByPlaceholder("Untitled")).toHaveValue("");
-  await expect(page.getByText("Type '/' for commands")).toBeVisible();
+  const paragraph = page.locator(".ProseMirror > p").first();
+  async function expectParagraphHint(hint: string) {
+    await expect(paragraph).toHaveAttribute("data-placeholder", hint);
+    await expect
+      .poll(() => paragraph.evaluate((element) => getComputedStyle(element, "::before").content))
+      .toContain(hint);
+    const geometry = await paragraph.evaluate((element) => ({
+      top: element.getBoundingClientRect().top,
+      toolbarBottom: document.querySelector(".folio-editor-actions")!.getBoundingClientRect()
+        .bottom,
+      float: getComputedStyle(element, "::before").cssFloat,
+      pointerEvents: getComputedStyle(element, "::before").pointerEvents,
+    }));
+    expect(geometry.top).toBeGreaterThanOrEqual(geometry.toolbarBottom);
+    expect(geometry.float).toBe("left");
+    expect(geometry.pointerEvents).toBe("none");
+    await expect(page.locator(".folio-demo__editor-placeholder")).toHaveCount(0);
+  }
+  await expectParagraphHint("Type '/' for commands");
 
   const editor = page.getByTestId("folio-editor");
   await expect(editor).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+
+  await page.getByRole("combobox", { name: "Language", exact: true }).selectOption("zh-CN");
+  await expectParagraphHint("输入 / 打开命令菜单");
+  await page.getByRole("switch", { name: "只读", exact: true }).check();
+  await expect(page.locator(".ProseMirror")).toHaveAttribute("contenteditable", "false");
+  await expect
+    .poll(() => paragraph.evaluate((element) => getComputedStyle(element, "::before").content))
+    .toBe("none");
+  await page.getByRole("switch", { name: "只读", exact: true }).uncheck();
+  await expectParagraphHint("输入 / 打开命令菜单");
+
+  await page.locator(".ProseMirror").click();
+  await page.keyboard.insertText("首段实际内容");
+  await expect(paragraph).toHaveText("首段实际内容");
+  await expect(paragraph).not.toHaveAttribute("data-placeholder");
+  await expect
+    .poll(() => paragraph.evaluate((element) => getComputedStyle(element, "::before").content))
+    .toBe("none");
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+  await page.keyboard.press("Backspace");
+  await expectParagraphHint("输入 / 打开命令菜单");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectParagraphHint("输入 / 打开命令菜单");
+  await page.getByRole("combobox", { name: "界面语言", exact: true }).selectOption("en");
+  await expectParagraphHint("Type '/' for commands");
 });
 
 test("formatting toolbar does not dominate blank pages", async ({ page }) => {

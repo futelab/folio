@@ -63,9 +63,11 @@ export function findBlockElement(
 }
 
 export function getCurrentBlockElement(editor: Editor | null): HTMLElement | null {
-  const selection = editor?.state.selection;
+  if (!editor || editor.isDestroyed) return null;
 
-  if (!editor || !selection) return null;
+  const selection = editor.state.selection;
+
+  if (!selection) return null;
 
   const node =
     selection instanceof NodeSelection
