@@ -2,11 +2,14 @@ import "@testing-library/jest-dom/vitest";
 import { useRef } from "react";
 import type { ReactNode } from "react";
 import { Editor } from "@tiptap/core";
+import type { JSONContent } from "@tiptap/core";
 import { EditorContent } from "@tiptap/react";
+import { NodeSelection } from "@tiptap/pm/state";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDefaultTiptapExtensions } from "@futelab/folio-core/browser";
 import { useBlockDrag } from "../blocks/useBlockDrag";
+import { getSelectedBlocks, setBlockSelection } from "../blocks/blockSelection";
 
 const editors: Editor[] = [];
 const frames = new Map<number, FrameRequestCallback>();
@@ -52,10 +55,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function createEditor() {
+function createEditor(content?: JSONContent) {
   const editor = new Editor({
     extensions: createDefaultTiptapExtensions(),
-    content: "<p>First</p><p>Second</p><p>Third</p>",
+    content: content ?? "<p>First</p><p>Second</p><p>Third</p>",
   });
   editors.push(editor);
   return editor;
@@ -77,12 +80,22 @@ function transfer() {
   };
 }
 
+function layoutRect(element: HTMLElement, rect: DOMRect) {
+  // Define an own method: spying on an inherited prototype mock would reuse
+  // the same mock and accidentally replace geometry for every element.
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: () => rect,
+  });
+}
+
 interface HarnessProps {
   editor: Editor | null;
   writable?: boolean;
   documentId?: string;
   name?: string;
   children?: ReactNode;
+  sourceSelector?: string;
 }
 
 function Harness({
@@ -91,6 +104,7 @@ function Harness({
   documentId = "a",
   name = "source",
   children,
+  sourceSelector,
 }: HarnessProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const { start, indicatorRef } = useBlockDrag(editor, rootRef, writable, documentId);
@@ -100,7 +114,12 @@ function Harness({
         data-testid={`${name}-handle`}
         draggable
         onDragStart={(event) =>
-          start(event, editor?.view.dom.firstElementChild as HTMLElement | null)
+          start(
+            event,
+            (sourceSelector
+              ? editor?.view.dom.querySelector<HTMLElement>(sourceSelector)
+              : editor?.view.dom.firstElementChild) as HTMLElement | null,
+          )
         }
         type="button"
       >
@@ -129,11 +148,12 @@ function dispatchDrag(
   type: string,
   dataTransfer: ReturnType<typeof transfer>,
   y = 275,
+  x = 70,
 ) {
   const event = new Event(type, { bubbles: true, cancelable: true });
   Object.defineProperties(event, {
     dataTransfer: { value: dataTransfer },
-    clientX: { value: 70 },
+    clientX: { value: x },
     clientY: { value: y },
   });
   act(() => target.dispatchEvent(event));
@@ -156,6 +176,165 @@ function expectCleared(source: HTMLElement, name = "source") {
 }
 
 describe("block drag sessions", () => {
+  it("drags a selected group as one preview, transaction and undo step", () => {
+    const editor = createEditor();
+    render(<Harness editor={editor} />);
+    const original = editor.getJSON();
+    act(() => setBlockSelection(editor, 0, editor.state.doc.child(0).nodeSize));
+    const { dataTransfer } = begin(editor);
+    expect(editor.view.dom.querySelectorAll("[data-folio-drag-source]")).toHaveLength(2);
+    expect(document.querySelector(".folio-block-drag-preview")).toHaveTextContent("FirstSecond");
+    expect(dataTransfer.getData("text/plain")).toBe("First\n\nSecond");
+    const update = vi.fn();
+    editor.on("update", update);
+    dispatchDrag(editor.view.dom.lastElementChild!, "drop", dataTransfer);
+    expect(editor.getText({ blockSeparator: "|" })).toBe("Third|First|Second");
+    expect(getSelectedBlocks(editor)).toHaveLength(2);
+    expect(update).toHaveBeenCalledOnce();
+    expect(editor.view.dom.querySelector("[data-folio-drag-source]")).toBeNull();
+    act(() => {
+      editor.commands.undo();
+    });
+    expect(editor.getJSON()).toEqual(original);
+  });
+
+  it("cancels every selected source marker and animation when a grouped document changes", () => {
+    const editor = createEditor();
+    render(<Harness editor={editor} />);
+    act(() => setBlockSelection(editor, 0, editor.state.doc.child(0).nodeSize));
+    const { dataTransfer, source } = begin(editor);
+    act(() => {
+      editor.commands.setTextSelection(2);
+      editor.commands.insertContent("Changed ");
+    });
+    const changed = editor.getJSON();
+    expectCleared(source);
+    expect(editor.view.dom.querySelector("[data-folio-drag-source]")).toBeNull();
+    expect(
+      dispatchDrag(editor.view.dom.lastElementChild!, "drop", dataTransfer).defaultPrevented,
+    ).toBe(true);
+    expect(editor.getJSON()).toEqual(changed);
+  });
+
+  it("indents a block into a callout and shows a container-width insertion guide", () => {
+    const editor = createEditor({
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "Incoming" }] },
+        {
+          type: "callout",
+          attrs: { tone: "warning" },
+          content: [{ type: "paragraph", content: [{ type: "text", text: "Existing" }] }],
+        },
+        { type: "paragraph", content: [{ type: "text", text: "Last" }] },
+      ],
+    });
+    render(<Harness editor={editor} />);
+    const container = editor.view.dom.querySelector<HTMLElement>(".folio-callout")!;
+    const existing = container.querySelector("p")!;
+    layoutRect(container, new DOMRect(80, 160, 300, 160));
+    layoutRect(existing, new DOMRect(100, 190, 260, 40));
+    const { dataTransfer } = begin(editor);
+    dispatchDrag(existing, "dragover", dataTransfer, 220, 150);
+    expect(screen.getByTestId("source-indicator")).toHaveStyle({
+      left: "60px",
+      top: "170px",
+      width: "300px",
+      visibility: "visible",
+    });
+    expect(screen.getByTestId("source-indicator")).toHaveAttribute(
+      "data-drop-container",
+      "callout",
+    );
+    dispatchDrag(existing, "drop", dataTransfer, 220, 150);
+    expect(editor.state.doc.firstChild?.type.name).toBe("callout");
+    expect(editor.state.doc.firstChild?.lastChild?.textContent).toBe("Incoming");
+    expect(editor.state.doc.firstChild?.attrs.tone).toBe("warning");
+  });
+
+  it("moves a selected nested block out through the document rail without dragging its container", () => {
+    const editor = createEditor({
+      type: "doc",
+      content: [
+        {
+          type: "callout",
+          attrs: { tone: "warning" },
+          content: [
+            {
+              type: "paragraph",
+              attrs: { folioBlockId: "nested" },
+              content: [{ type: "text", text: "Nested" }],
+            },
+          ],
+        },
+        { type: "paragraph", content: [{ type: "text", text: "Second" }] },
+        { type: "paragraph", content: [{ type: "text", text: "Third" }] },
+      ],
+    });
+    render(<Harness editor={editor} sourceSelector=".folio-callout p" />);
+    const container = editor.view.dom.querySelector<HTMLElement>(".folio-callout")!;
+    layoutRect(container, new DOMRect(80, 100, 300, 80));
+    const nested = container.querySelector("p")!;
+    act(() =>
+      editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, 1))),
+    );
+    const dataTransfer = transfer();
+    fireEvent.dragStart(screen.getByTestId("source-handle"), { dataTransfer });
+    expect(nested).toHaveAttribute("data-folio-drag-source", "true");
+    expect(container).not.toHaveAttribute("data-folio-drag-source");
+    dispatchDrag(editor.view.dom.lastElementChild!, "dragover", dataTransfer, 275, 50);
+    expect(screen.getByTestId("source-indicator")).toHaveAttribute("data-drop-container", "doc");
+    dispatchDrag(editor.view.dom.lastElementChild!, "drop", dataTransfer, 275, 50);
+    expect(editor.state.doc.firstChild?.type.name).toBe("callout");
+    expect(editor.state.doc.firstChild?.firstChild?.textContent).toBe("");
+    expect(editor.state.doc.lastChild?.attrs.folioBlockId).toBe("nested");
+  });
+
+  it("chooses the horizontally targeted column and preserves both column widths", () => {
+    const editor = createEditor({
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "Incoming" }] },
+        {
+          type: "columns",
+          content: [
+            {
+              type: "column",
+              attrs: { width: 60 },
+              content: [{ type: "paragraph", content: [{ type: "text", text: "Left" }] }],
+            },
+            {
+              type: "column",
+              attrs: { width: 40 },
+              content: [{ type: "paragraph", content: [{ type: "text", text: "Right" }] }],
+            },
+          ],
+        },
+        { type: "paragraph", content: [{ type: "text", text: "Last" }] },
+      ],
+    });
+    render(<Harness editor={editor} />);
+    const columns = editor.view.dom.querySelectorAll<HTMLElement>(".folio-column");
+    layoutRect(columns[0]!, new DOMRect(80, 160, 160, 180));
+    layoutRect(columns[1]!, new DOMRect(280, 160, 160, 180));
+    layoutRect(columns[0]!.querySelector("p")!, new DOMRect(90, 180, 140, 40));
+    const right = columns[1]!.querySelector("p")!;
+    layoutRect(right, new DOMRect(290, 180, 140, 40));
+    const { dataTransfer } = begin(editor);
+    dispatchDrag(right, "dragover", dataTransfer, 230, 320);
+    expect(screen.getByTestId("source-indicator")).toHaveStyle({
+      left: "260px",
+      width: "160px",
+      visibility: "visible",
+    });
+    expect(screen.getByTestId("source-indicator")).toHaveAttribute("data-drop-container", "column");
+    dispatchDrag(right, "drop", dataTransfer, 230, 320);
+    const layout = editor.state.doc.firstChild!;
+    expect(layout.child(0).attrs.width).toBe(60);
+    expect(layout.child(1).attrs.width).toBe(40);
+    expect(layout.child(0).textContent).toBe("Left");
+    expect(layout.child(1).textContent).toBe("RightIncoming");
+  });
   it("previews the actual source block and commits one valid internal drop", () => {
     const editor = createEditor();
     render(<Harness editor={editor} />);

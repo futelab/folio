@@ -39,3 +39,14 @@ export type {
   TableControlsProps,
   FolioMessagesOptions,
 } from "./react";
+export * from "../../react/src/blocks/BlockActionMenu";
+export * from "../../react/src/blocks/blockActions";
+export * from "../../react/src/blocks/blockSelection";
+export * from "../../react/src/blocks/blockLayout";
+export * from "../../react/src/editorUI";
+export * from "../../react/src/clipboard";
+export * from "../../react/src/search";
+export * from "../../react/src/history";
+export * from "../../react/src/comments";
+export * from "../../react/src/collaboration";
+export * from "../../react/src/ui";

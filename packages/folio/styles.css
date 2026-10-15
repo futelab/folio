@@ -1001,3 +1001,382 @@
   }
 }
 
+.folio-columns {
+  display: flex;
+  gap: var(--folio-columns-gap, 1.25rem);
+  margin-block: 1rem;
+  width: 100%;
+}
+
+.folio-column {
+  flex: var(--folio-column-width, 1) 1 0%;
+  min-width: 0;
+}
+
+.folio-column > :first-child {
+  margin-block-start: 0;
+}
+
+.folio-column > :last-child {
+  margin-block-end: 0;
+}
+
+/* The two block buttons occupy 49px, followed by the normal control gap.
+   Reserve that gutter between editable columns so the next column's controls
+   cannot cover the previous column's text. Readers keep the requested gap. */
+.folio-editor .ProseMirror[contenteditable="true"] .folio-columns {
+  column-gap: max(
+    var(--folio-columns-gap, 1.25rem),
+    calc(49px + var(--folio-block-controls-gap, 8px) + 4px)
+  );
+}
+
+@media (max-width: 640px) {
+  .folio-columns {
+    flex-direction: column;
+  }
+
+  .folio-column {
+    flex: none;
+    width: 100%;
+  }
+}
+
+.folio-editor .folio-block-selected {
+  background-color: var(--folio-color-selected);
+  border-radius: var(--folio-radius-sm);
+  outline: 1px solid color-mix(in srgb, var(--folio-color-accent) 22%, transparent);
+}
+
+.folio-block-selection-gutter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -64px;
+  width: 64px;
+  cursor: default;
+  touch-action: pan-y;
+}
+
+.folio-block-selection-marquee {
+  position: fixed;
+  z-index: 1100;
+  pointer-events: none;
+  background: rgb(47 111 159 / 9%);
+  border: 1px solid rgb(47 111 159 / 45%);
+  border-radius: 3px;
+}
+
+.folio-block-action-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.folio-block-action-menu {
+  position: absolute;
+  width: 244px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  padding: 6px;
+  background: var(--folio-color-bg);
+  border: 1px solid var(--folio-color-border);
+  border-radius: 8px;
+  box-shadow: var(--folio-shadow-menu);
+  pointer-events: auto;
+  font-size: 13px;
+}
+
+.folio-block-action-menu > button {
+  display: block;
+  appearance: none;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  width: 100%;
+  padding: 7px 10px;
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+}
+
+.folio-block-action-menu > button:hover,
+.folio-block-action-menu > button:focus-visible {
+  background: var(--folio-color-hover);
+  outline: none;
+}
+
+.folio-block-action-menu button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.folio-block-action-menu__count {
+  padding: 5px 10px;
+  color: var(--folio-color-muted);
+}
+
+.folio-block-action-menu__settings {
+  border-top: 1px solid var(--folio-color-border);
+  margin-top: 5px;
+  padding: 8px 5px 3px;
+  display: grid;
+  gap: 7px;
+}
+
+.folio-block-action-menu__settings label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.folio-block-action-menu select {
+  width: 120px;
+  min-width: 0;
+}
+
+.folio-editor select,
+.folio-search-panel input {
+  background: var(--folio-color-bg);
+  color: var(--folio-color-text);
+  border: 1px solid var(--folio-color-border);
+  border-radius: 4px;
+  padding: 5px 6px;
+  font: inherit;
+}
+
+.folio-editor-actions--floating {
+  position: sticky;
+  top: 8px;
+  z-index: 35;
+  background: var(--folio-color-bg);
+  border: 1px solid var(--folio-color-border);
+  box-shadow: var(--folio-shadow-menu);
+  border-radius: 8px;
+  padding: 6px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.folio-layout-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.folio-editor-view-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.folio-editor-view-actions button {
+  background: var(--folio-color-bg);
+  color: var(--folio-color-muted);
+  border: 1px solid var(--folio-color-border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.folio-search-panel {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 380px;
+  max-width: calc(100vw - 24px);
+  z-index: 65;
+  padding: 12px;
+  border: 1px solid var(--folio-color-border);
+  border-radius: 8px;
+  box-shadow: var(--folio-shadow-menu);
+  background: var(--folio-color-bg);
+  font-size: 13px;
+}
+
+.folio-search-panel__row,
+.folio-search-panel__options {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.folio-search-panel__row input {
+  min-width: 0;
+  flex: 1;
+}
+
+.folio-search-panel button,
+.folio-comments-panel button {
+  color: inherit;
+  background: var(--folio-color-surface);
+  border: 1px solid var(--folio-color-border);
+  border-radius: 4px;
+  font: inherit;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.folio-search-panel button:disabled,
+.folio-comments-panel button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.folio-search-panel__options {
+  margin: 6px 0;
+  flex-wrap: wrap;
+}
+
+.folio-search-panel__options label {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.folio-search-panel__count {
+  display: block;
+  padding-top: 6px;
+  color: var(--folio-color-muted);
+}
+
+.folio-search-match {
+  background: #fff0ac;
+  color: #302b20;
+}
+
+.folio-search-match--active {
+  background: #ffc65e;
+  outline: 1px solid #a96a00;
+}
+
+.folio-comments-container {
+  margin: 0.75rem 0;
+  border: 1px solid var(--folio-color-border);
+  border-radius: 8px;
+  background: var(--folio-color-surface);
+  padding: 12px;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.folio-comments-panel h2 {
+  font-size: 1rem;
+  margin: 0 0 10px;
+}
+
+.folio-comments-panel textarea {
+  width: 100%;
+  min-height: 60px;
+  background: var(--folio-color-bg);
+  border: 1px solid var(--folio-color-border);
+  color: inherit;
+  border-radius: 4px;
+  padding: 8px;
+  font: inherit;
+  resize: vertical;
+}
+
+.folio-comments-panel ol {
+  list-style: none;
+  padding: 0;
+}
+
+.folio-comments-panel li {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--folio-color-border);
+  border-radius: 5px;
+  background: var(--folio-color-bg);
+}
+
+.folio-comments-panel p {
+  margin: 6px 0;
+}
+
+.folio-comments-panel time {
+  color: var(--folio-color-muted);
+  font-size: 12px;
+}
+
+.folio-comment-highlight {
+  background: color-mix(in srgb, #ffd263 25%, transparent);
+  border-bottom: 2px solid #d5a435;
+}
+
+.folio-history-panel {
+  width: min(1100px, calc(100vw - 32px));
+  max-width: 1100px;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}
+
+.folio-history-panel > header,
+.folio-history-panel form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.folio-history-panel__body {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.folio-history-panel__body nav {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.folio-history-panel__body nav button {
+  display: grid;
+  gap: 4px;
+  text-align: start;
+}
+
+.folio-history-panel__body button[aria-pressed="true"] {
+  outline: 2px solid var(--folio-color-accent);
+}
+
+.folio-history-panel__previews {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.folio-history-panel__previews > section {
+  min-width: 0;
+  border: 1px solid var(--folio-color-border);
+  border-radius: 5px;
+  padding: 12px;
+}
+
+@media (max-width: 640px) {
+  .folio-history-panel__body,
+  .folio-history-panel__previews {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .folio-history-panel__body nav {
+    max-height: 150px;
+    overflow: auto;
+  }
+  .folio-history-panel form {
+    flex-wrap: wrap;
+  }
+  .folio-block-selection-gutter {
+    left: -28px;
+    width: 28px;
+  }
+}
+

@@ -29,9 +29,12 @@ async function openDragDocument(page: Page, paragraphs: string[]) {
 
 async function beginBlockDrag(page: Page, source: Locator) {
   await source.hover();
-  const handle = page.getByRole("button", { name: "Drag block", exact: true });
-  await expect(handle).toBeVisible();
-  await expect(handle).toHaveAttribute("draggable", "true");
+  const handleLocator = page.getByRole("button", { name: "Drag block", exact: true });
+  await expect(handleLocator).toBeVisible();
+  await expect(handleLocator).toHaveAttribute("draggable", "true");
+  // Native dragend targets the original source, even when a successful drop
+  // hides its controls. Do not resolve a visible-role locator again afterward.
+  const handle = (await handleLocator.elementHandle())!;
   const handleBox = await handle.boundingBox();
   expect(handleBox).not.toBeNull();
   const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
@@ -978,6 +981,156 @@ test("toggle disclosure button is centered on the summary first line", async ({ 
   });
 
   expect(centerDelta).toBeLessThanOrEqual(1);
+});
+
+async function openDetailsHoverDocument(page: Page, paragraphs: string[], portal = false) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page", exact: true }).click();
+  await page.getByLabel("Import document file", { exact: true }).setInputFiles({
+    name: "details-hover-fixture.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        type: "doc",
+        content: [
+          {
+            type: "details",
+            attrs: { open: true },
+            content: [
+              { type: "detailsSummary", content: [{ type: "text", text: "Panel heading" }] },
+              {
+                type: "detailsContent",
+                content: paragraphs.map((text) => ({
+                  type: "paragraph",
+                  content: [{ type: "text", text }],
+                })),
+              },
+            ],
+          },
+          { type: "paragraph", content: [{ type: "text", text: "After the panel" }] },
+        ],
+      }),
+    ),
+  });
+  if (portal) {
+    await page.getByText("Feature laboratory", { exact: true }).click();
+    await page.getByLabel("Mount floating UI outside the editor", { exact: true }).check();
+  }
+  const editor = page.getByTestId("folio-editor").locator(".ProseMirror");
+  const details = editor.locator(':scope > [data-type="details"]');
+  await expect(details.locator('[data-type="detailsContent"] > p')).toHaveText(paragraphs);
+  await expect(details.locator('[data-type="detailsContent"]')).toBeVisible();
+  await details.scrollIntoViewIfNeeded();
+  return { editor, details };
+}
+
+for (const portal of [false, true]) {
+  test(`single-body details keep one reachable panel target across title arrow padding and body (${portal ? "portal" : "inline"})`, async ({
+    page,
+  }) => {
+    const { details, editor } = await openDetailsHoverDocument(
+      page,
+      ["The complete panel body"],
+      portal,
+    );
+    const summary = details.locator("summary");
+    const arrow = details.locator(":scope > button");
+    const body = details.locator('[data-type="detailsContent"] > p');
+    const grip = page.getByRole("button", { name: "Drag block", exact: true });
+    await summary.hover();
+    const baseline = (await grip.boundingBox())!;
+    expect(baseline).not.toBeNull();
+    expect(await grip.evaluate((element) => Boolean(element.closest(".folio-ui-portal")))).toBe(
+      portal,
+    );
+    const panelBox = (await details.boundingBox())!;
+    const titleBox = (await summary.boundingBox())!;
+    const arrowBox = (await arrow.boundingBox())!;
+    const bodyBox = (await body.boundingBox())!;
+    const stableGrip = async () => {
+      await expect(grip).toBeVisible();
+      await expect
+        .poll(async () => {
+          const box = await grip.boundingBox();
+          return box
+            ? Math.max(Math.abs(box.x - baseline.x), Math.abs(box.y - baseline.y))
+            : Infinity;
+        })
+        .toBeLessThanOrEqual(1);
+    };
+    // Move the actual pointer through each surface, including the wrapper's
+    // padding and the gutter rather than teleporting directly onto the button.
+    for (const point of [
+      { x: arrowBox.x + arrowBox.width / 2, y: arrowBox.y + arrowBox.height / 2 },
+      { x: titleBox.x + 1, y: titleBox.y + titleBox.height / 2 },
+      { x: panelBox.x + 1, y: panelBox.y + 1 },
+      { x: bodyBox.x + 80, y: bodyBox.y + bodyBox.height / 2 },
+      { x: panelBox.x + 1, y: bodyBox.y + bodyBox.height / 2 },
+      { x: panelBox.x - 4, y: titleBox.y + titleBox.height / 2 },
+      { x: baseline.x + baseline.width / 2, y: baseline.y + baseline.height / 2 },
+    ]) {
+      await page.mouse.move(point.x, point.y, { steps: 12 });
+      await stableGrip();
+    }
+    await page.mouse.click(baseline.x + baseline.width / 2, baseline.y + baseline.height / 2);
+    await expect(page.getByRole("menu", { name: "Block actions", exact: true })).toBeVisible();
+    await page.getByRole("menuitem", { name: "Duplicate blocks", exact: true }).click();
+    await expect(editor.locator(':scope > [data-type="details"]')).toHaveCount(2);
+    for (const panel of await editor.locator(':scope > [data-type="details"]').all()) {
+      await expect(panel.locator("summary")).toHaveText("Panel heading");
+      await expect(panel.locator('[data-type="detailsContent"] > p')).toHaveText([
+        "The complete panel body",
+      ]);
+    }
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(details).toHaveCount(1);
+    await arrow.click();
+    await expect(details.locator('[data-type="detailsContent"]')).toBeHidden();
+    await summary.hover();
+    await stableGrip();
+    await grip.click();
+    await expect(page.getByRole("menu", { name: "Block actions", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await arrow.click();
+    await expect(body).toBeVisible();
+    await body.hover();
+    await stableGrip();
+  });
+}
+
+test("multi-body details preserve independently reachable paragraph actions", async ({ page }) => {
+  const { details, editor } = await openDetailsHoverDocument(
+    page,
+    ["First panel paragraph", "Second panel paragraph"],
+    true,
+  );
+  const paragraphs = details.locator('[data-type="detailsContent"] > p');
+  const grip = page.getByRole("button", { name: "Drag block", exact: true });
+  await details.locator("summary").hover();
+  const panelGrip = (await grip.boundingBox())!;
+  await paragraphs.nth(1).hover();
+  const paragraphGrip = (await grip.boundingBox())!;
+  expect(paragraphGrip.y).toBeGreaterThan(panelGrip.y + 10);
+  const paragraphBox = (await paragraphs.nth(1).boundingBox())!;
+  await page.mouse.move(paragraphBox.x - 4, paragraphGrip.y + paragraphGrip.height / 2, {
+    steps: 12,
+  });
+  await page.mouse.move(
+    paragraphGrip.x + paragraphGrip.width / 2,
+    paragraphGrip.y + paragraphGrip.height / 2,
+    { steps: 8 },
+  );
+  await page.mouse.click(
+    paragraphGrip.x + paragraphGrip.width / 2,
+    paragraphGrip.y + paragraphGrip.height / 2,
+  );
+  await page.getByRole("menuitem", { name: "Duplicate blocks", exact: true }).click();
+  await expect(editor.locator(':scope > [data-type="details"]')).toHaveCount(1);
+  await expect(paragraphs).toHaveText([
+    "First panel paragraph",
+    "Second panel paragraph",
+    "Second panel paragraph",
+  ]);
 });
 
 test("table controls add rows and columns in place", async ({ page }) => {

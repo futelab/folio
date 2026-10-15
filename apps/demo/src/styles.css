@@ -333,6 +333,48 @@ select {
   position: relative;
 }
 
+.folio-demo__feature-controls {
+  border-top: 1px solid #ded9d0;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding-top: 0.75rem;
+}
+
+.folio-demo__feature-controls summary {
+  cursor: pointer;
+  font-weight: 650;
+  margin-bottom: 0.5rem;
+}
+
+.folio-demo__feature-controls[open] > label {
+  margin: 0.6rem 0;
+}
+
+.folio-demo__custom-toolbar {
+  border: 1px dashed #ac8c60;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+
+.folio-demo__custom-toolbar > strong {
+  display: inline-block;
+  font-size: 0.8rem;
+  margin-right: 0.5rem;
+}
+
+.folio-demo__collaborator {
+  border-top: 2px solid #d8c7ed;
+  margin-top: 2rem;
+  min-width: 0;
+  padding-top: 1rem;
+}
+
+.folio-demo__collaborator h2,
+.folio-demo__room-status {
+  color: #6b5384;
+  font-size: 0.9rem;
+}
+
 .folio-demo__document .folio-editor {
   background: transparent;
   min-height: 58vh;

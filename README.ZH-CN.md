@@ -1,6 +1,6 @@
 # Folio
 
-[English](./README.md) · [在线演示](https://futelab.github.io/folio/) · [发布说明](./docs/RELEASING.md)
+[English](./README.md) · [在线演示](https://futelab.github.io/folio/) · [发布说明](./docs/RELEASING.md) · [编辑能力与接入](https://github.com/futelab/folio/blob/main/docs/EDITOR-CAPABILITIES.md)
 
 Folio 是基于 Tiptap 的 React 文档编辑与阅读组件库，对外包名为 `@futelab/folio`，使用兼容 Tiptap 的 JSON 文档，采用 MIT 许可证。
 
@@ -13,6 +13,9 @@ Folio 是基于 Tiptap 的 React 文档编辑与阅读组件库，对外包名�
 - 支持服务端渲染的阅读器、自定义节点/标记、唯一目录锚点和渲染规模限制。
 - 递归文档校验、版本化存储、HTML/Markdown 转换及明确的失败反馈。
 - 英语、简体中文、实例级翻译和 CSS 变量主题。
+- 块菜单、多块框选与批量操作、稳定块链接、富文本/纯文本剪贴板和图片粘贴上传。
+- 嵌套拖拽、两栏/三栏布局、可独立撤销的查找替换、工具栏模式、组件插槽和外部浮层容器。
+- Yjs 协作与远程光标、隔离的本地撤销、锚点评论和通过宿主适配器接入的版本对照/恢复。
 
 ## 安装与示例
 
@@ -64,7 +67,9 @@ ESM、CommonJS 均提供对应类型声明。Next.js 编辑器应放在 client c
 - `locale="zh-CN"`、`translations`、`labels` 控制文案；`placeholder`、`className`、`classNames` 控制表现。
 - `useFolioEditor` 返回底层编辑器；菜单和控件可单独组合。
 
-块加号会在当前顶层块下方新建段落。悬停后拖动左侧六点手柄即可排序，蓝色插入线会显示落点，支持块间空白及文档首尾；源块保持高亮，原生拖拽预览跟随鼠标。停在视口或滚动容器的上下边缘会自动滚动，按 Escape 取消。列表、提示块、折叠块和表格会连同内容及属性整体移动，每次移动独立撤销。Alt+Shift+上下方向键和文档操作按钮提供键盘、触屏替代操作。拖拽排序限于同一编辑器的当前文档，暂不支持分栏和嵌套层级调整。表格边缘加号向末尾追加；表格内选区可操作删行列、切换表头、合并/拆分单元格和删除表格。
+块加号会在当前顶层块下方新建段落。悬停后拖动六点手柄可排序，点击手柄可打开菜单。蓝色插入线标识同一编辑器中合法的目标位置，支持提示块、列表项和分栏内的嵌套移动。滚动边缘自动滚动，Escape 取消；表格保持完整，不合法的结构落点会被拒绝。每次移动独立撤销。正文按 Escape 选中当前顶层块，Shift+上下方向键扩大范围，也可从左侧空白处框选；选中范围支持整组复制、创建副本、删除和拖动。Alt+Shift+上下方向键提供键盘移动。表格边缘加号向末尾追加；表格内选区可操作删行列、切换表头、合并/拆分单元格和删除表格。
+
+`ui.toolbar` 支持完整、精简、滚动停靠和隐藏模式；`components` 替换界面插槽，`portalContainer` 将浮层放入外部容器。Ctrl/Cmd+F 查找替换，Ctrl/Cmd+Shift+V 纯文本粘贴。`collaboration`、`comments`、`history` 通过宿主适配器接入。Demo 的协作传输、评论及版本保存在内存，刷新重置；生产传输、存储及服务端鉴权由宿主实现。分栏和块链接元数据需用 JSON 或 HTML 保真，Markdown 会明确拒绝。完整契约和验收步骤见接入文档。
 
 ## 保存、校验与恢复
 

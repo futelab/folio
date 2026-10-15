@@ -8,7 +8,15 @@ import {
   parseFolioSnapshot,
 } from "@futelab/folio/core";
 import { fromHTML, fromMarkdown, toHTML, toMarkdown } from "@futelab/folio/serialization";
-import { FolioEditor, FolioReader } from "@futelab/folio/react";
+import { FolioReader, createMemoryCommentStore } from "@futelab/folio/react";
+import {
+  createDemoCollaboration,
+  createDemoPageFeatures,
+  defaultDemoFeatureSettings,
+  DemoFeatureControls,
+  DemoFeatureEditor,
+} from "./DemoFeatures";
+import type { DemoCollaboration } from "./DemoFeatures";
 import {
   FileText,
   Folder,
@@ -497,7 +505,13 @@ function updatePageTitle(pages: DemoPage[], pageId: string, title: string): Demo
 export function DemoApp() {
   const [loaded] = useState(loadPages);
   const [pages, setPages] = useState<DemoPage[]>(loaded.pages);
-  const [selectedPageId, setSelectedPageId] = useState(pages[0]?.id ?? starterPages[0].id);
+  const [selectedPageId, setSelectedPageId] = useState(() => {
+    const requested = new URL(window.location.href).searchParams.get("page");
+    return pages.find((page) => page.id === requested)?.id ?? pages[0]?.id ?? starterPages[0].id;
+  });
+  const [features, setFeatures] = useState(() => createDemoPageFeatures(loaded.pages));
+  const [featureSettings, setFeatureSettings] = useState(defaultDemoFeatureSettings);
+  const [collaboration, setCollaboration] = useState<DemoCollaboration | null>(null);
   const [query, setQuery] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [locale, setLocale] = useState<DemoLocale>("en");
@@ -532,6 +546,15 @@ export function DemoApp() {
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
+  useEffect(() => () => collaboration?.room.destroy(), [collaboration]);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("page") !== selectedPageId) {
+      url.searchParams.set("page", selectedPageId);
+      url.hash = "";
+      window.history.replaceState(null, "", url);
+    }
+  }, [selectedPageId]);
 
   useEffect(() => {
     latestPageId.current = selectedPageId;
@@ -588,6 +611,16 @@ export function DemoApp() {
   function handleCreatePage() {
     if (readOnly || pages.length >= 100) return;
     const page = createBlankPage();
+    setFeatures((current) => ({
+      ...current,
+      comments: new Map([...current.comments, [page.id, createMemoryCommentStore()]]),
+    }));
+    void features.history.create(page.id, {
+      document: page.document,
+      label: "Initial demo version",
+      author: { id: "maya", name: "Maya" },
+    });
+    if (collaboration) setCollaboration(createDemoCollaboration(page.document));
 
     changePages((currentPages) => [page, ...currentPages]);
     setSelectedPageId(page.id);
@@ -597,6 +630,8 @@ export function DemoApp() {
     if (readOnly) return;
     setSaveState("saving");
     setPages(starterPages);
+    setFeatures(createDemoPageFeatures(starterPages));
+    if (collaboration) setCollaboration(createDemoCollaboration(starterPages[0].document));
     setSelectedPageId(starterPages[0].id);
     setStorageBlocked(false);
     setRetrySave((value) => value + 1);
@@ -656,6 +691,7 @@ export function DemoApp() {
       if (latestPageId.current !== targetId || latestReadOnly.current)
         throw new Error(copy.importChanged);
       changePages((currentPages) => updatePageDocument(currentPages, targetId, document));
+      if (collaboration) setCollaboration(createDemoCollaboration(document));
       setNotice({ kind: "success", message: copy.imported });
     } catch (error) {
       setNotice({
@@ -701,6 +737,8 @@ export function DemoApp() {
               key={page.id}
               onClick={() => {
                 clearEditorError();
+                if (collaboration && page.id !== selectedPageId)
+                  setCollaboration(createDemoCollaboration(page.document));
                 setSelectedPageId(page.id);
               }}
               type="button"
@@ -787,6 +825,15 @@ export function DemoApp() {
           />
           <p>{copy.markdownHelp}</p>
           <p>{copy.uploadHelp}</p>
+          <DemoFeatureControls
+            locale={locale}
+            settings={featureSettings}
+            onChange={setFeatureSettings}
+            collaborating={Boolean(collaboration)}
+            onCollaborationChange={(enabled) =>
+              setCollaboration(enabled ? createDemoCollaboration(selectedPage.document) : null)
+            }
+          />
           {loaded.original && loaded.blocked ? (
             <button
               onClick={() =>
@@ -883,7 +930,10 @@ export function DemoApp() {
             value={selectedPage.title}
           />
           <div className="folio-demo__editor-frame">
-            <FolioEditor
+            <DemoFeatureEditor
+              features={features}
+              settings={featureSettings}
+              session={collaboration}
               classNames={{ slashMenu: "folio-demo__command-menu" }}
               key={selectedPage.id}
               documentId={selectedPage.id}

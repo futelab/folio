@@ -1,5 +1,7 @@
 @import "./editor.css";
 @import "./reader.css";
+@import "./layout.css";
+@import "./features.css";
 
 :root {
   --folio-color-bg: #ffffff;

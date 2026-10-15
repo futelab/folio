@@ -54,11 +54,15 @@ describe("editor reliability boundaries", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("hides every editor writing control in read-only mode", () => {
+  it("hides every editor writing control in read-only mode", async () => {
     render(<FolioEditor editable={false} initialSlashQuery="/" value={doc("Read only")} />);
-    expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("toolbar", { name: "Document browsing" })).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("toolbar", { name: "Document actions" })).not.toBeInTheDocument();
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Find and replace" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Insert block" })).not.toBeInTheDocument();
   });
 
   it("keeps parent echoes and current callbacks without resetting undo history", async () => {

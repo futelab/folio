@@ -43,13 +43,19 @@ describe("live editor table of contents", () => {
         "First",
         "Second",
       ]);
-      expect(editor.getJSON().content?.[0]).toEqual({ type: "tableOfContents" });
+      expect(editor.getJSON().content?.[0]).toEqual({
+        type: "tableOfContents",
+        attrs: { folioBlockId: null },
+      });
       editor.commands.insertContentAt({ from: 2, to: 7 }, "Edited");
       expect(Array.from(nav.querySelectorAll("a"), (link) => link.textContent)).toEqual([
         "Edited",
         "Second",
       ]);
-      expect(editor.getJSON().content?.[0]).toEqual({ type: "tableOfContents" });
+      expect(editor.getJSON().content?.[0]).toEqual({
+        type: "tableOfContents",
+        attrs: { folioBlockId: null },
+      });
     } finally {
       close();
     }

@@ -3,6 +3,8 @@ import type { JSONContent } from "@tiptap/core";
 import { createDefaultTiptapExtensions } from "./extensions/defaultExtensions";
 import type { FolioExtension } from "./extensions/types";
 import { createFolioExtensionRegistry } from "./extensions/registry";
+import { isFolioBlockId } from "./extensions/blockIdentity";
+import { isFolioColumnWidth } from "./nodes/columns";
 
 export type FolioDocument = JSONContent & { type: "doc"; content?: JSONContent[] };
 export type FolioJSONContent = JSONContent;
@@ -91,6 +93,7 @@ function validateDocument(
   let characters = 0;
   let attributeValues = 0;
   let unknownContent = false;
+  const blockIds = new Set<string>();
   let schema: ReturnType<typeof getSchema>;
   try {
     schema = compiledSchema ?? validationSchema(options);
@@ -191,6 +194,27 @@ function validateDocument(
     }
     if (isRecord(item.attrs)) {
       const attrs = item.attrs;
+      if (item.type === "column" && attrs.width !== undefined && !isFolioColumnWidth(attrs.width))
+        issue(
+          "invalid_attribute",
+          `${path}.attrs.width`,
+          "Column width must be a positive finite weight no greater than 100",
+        );
+      if (attrs.folioBlockId !== undefined && attrs.folioBlockId !== null) {
+        if (!isFolioBlockId(attrs.folioBlockId))
+          issue(
+            "invalid_attribute",
+            `${path}.attrs.folioBlockId`,
+            "Block ID must contain 1 to 128 letters, numbers, underscores or hyphens",
+          );
+        else if (blockIds.has(attrs.folioBlockId))
+          issue(
+            "duplicate_block_id",
+            `${path}.attrs.folioBlockId`,
+            "Block IDs must be unique within a document",
+          );
+        else blockIds.add(attrs.folioBlockId);
+      }
       if (
         item.type === "heading" &&
         attrs.level !== undefined &&

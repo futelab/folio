@@ -19,6 +19,8 @@ import { FolioTableOfContentsNode } from "../nodes/toc";
 import { createFolioMessages } from "../i18n";
 import type { FolioI18nOptions, FolioMessages } from "../i18n";
 import { createFolioExtensionRegistry } from "./registry";
+import { FolioBlockIdentity } from "./blockIdentity";
+import { FolioColumns, FolioColumn } from "../nodes/columns";
 
 const FolioTableOfContentsController = TableOfContents.extend({
   name: "folioTableOfContentsController",
@@ -41,6 +43,9 @@ export function createDefaultTiptapExtensions(
   ).extensions.flatMap((extension) => extension.tiptapExtensions ?? []);
 
   return [
+    FolioBlockIdentity,
+    FolioColumns,
+    FolioColumn,
     StarterKit.configure({
       heading: {
         levels: [1, 2, 3],

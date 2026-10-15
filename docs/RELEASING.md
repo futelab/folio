@@ -55,7 +55,7 @@ Create a Changeset for public changes, then apply the version and changelog upda
 
 ```sh
 pnpm changeset
-pnpm version
+pnpm run version
 ```
 
 Review and commit the generated version/changelog changes to `main`. Create a matching release tag and push it:

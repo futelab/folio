@@ -11,6 +11,17 @@ import {
 import type { FolioDocument, FolioExtension } from "@futelab/folio-core/browser";
 import type { FolioI18nOptions } from "./i18n";
 import { resolveFolioMessages } from "./i18n";
+import { createFolioClipboardExtension } from "./clipboard/extension";
+import type { FolioClipboardOptions } from "./clipboard/types";
+import {
+  createFolioCollaborationExtensions,
+  isFolioCollaborationTransaction,
+  normalizeFolioCollaborationUser,
+  withoutFolioHistory,
+} from "./collaboration";
+import type { FolioCollaborationOptions } from "./collaboration";
+import { createFolioCommentsExtension } from "./comments/extension";
+import type { FolioCommentsOptions } from "./comments/types";
 
 export interface UseFolioEditorOptions extends FolioI18nOptions {
   value?: FolioDocument;
@@ -22,6 +33,11 @@ export interface UseFolioEditorOptions extends FolioI18nOptions {
   editable?: boolean;
   extensions?: FolioExtension[];
   placeholder?: string;
+  clipboard?: FolioClipboardOptions;
+  /** Y.Doc is authoritative in this mode; value/defaultValue are not replacements. */
+  collaboration?: FolioCollaborationOptions;
+  /** Use a separate store per document; discussion data stays outside document JSON. */
+  comments?: FolioCommentsOptions;
 }
 
 export function useFolioEditor(options: UseFolioEditorOptions = {}): Editor | null {
@@ -33,6 +49,15 @@ export function useFolioEditor(options: UseFolioEditorOptions = {}): Editor | nu
   const previousIdentity = useRef(options.documentId);
   const previousInput = useRef<string | undefined>(undefined);
   const initialized = useRef(false);
+  const collaboration = options.collaboration;
+  const collaborative = Boolean(collaboration);
+  const sharedDocument = collaboration?.document;
+  const sharedField = collaboration?.field;
+  const provider = collaboration?.provider;
+  const manageConnection = collaboration?.manageConnection;
+  const userId = collaboration?.user?.id;
+  const userName = collaboration?.user?.name;
+  const userColor = collaboration?.user?.color;
 
   const extensionConfig = useMemo(() => {
     try {
@@ -69,12 +94,14 @@ export function useFolioEditor(options: UseFolioEditorOptions = {}): Editor | nu
   const input = useMemo(() => {
     try {
       if (validation.error) throw validation.error;
-      const candidate = options.value ?? options.defaultValue ?? createEmptyFolioDocument();
+      const candidate = collaborative
+        ? createEmptyFolioDocument()
+        : (options.value ?? options.defaultValue ?? createEmptyFolioDocument());
       return { value: validation.validator!.parse(candidate) };
     } catch (error) {
       return { error: error instanceof Error ? error : new Error(String(error)) };
     }
-  }, [options.value, options.defaultValue, validation]);
+  }, [options.value, options.defaultValue, collaborative, validation]);
   const editable = options.editable !== false && !input.error && !extensionConfig.error;
   const mayWrite = useRef(editable);
   mayWrite.current = editable;
@@ -86,7 +113,7 @@ export function useFolioEditor(options: UseFolioEditorOptions = {}): Editor | nu
     previousInput.current = input.value ? JSON.stringify(input.value) : undefined;
     initialized.current = true;
     revision.current += 1;
-  } else if (options.value !== undefined && input.value) {
+  } else if (!options.collaboration && options.value !== undefined && input.value) {
     const nextJSON = JSON.stringify(input.value);
     if (nextJSON !== previousInput.current) {
       previousInput.current = nextJSON;
@@ -111,7 +138,14 @@ export function useFolioEditor(options: UseFolioEditorOptions = {}): Editor | nu
           return [
             new Plugin({
               filterTransaction(transaction) {
-                return !transaction.docChanged || mayWrite.current;
+                return (
+                  !transaction.docChanged ||
+                  mayWrite.current ||
+                  Boolean(
+                    latestOptions.current.collaboration &&
+                    isFolioCollaborationTransaction(transaction),
+                  )
+                );
               },
             }),
           ];
@@ -119,26 +153,92 @@ export function useFolioEditor(options: UseFolioEditorOptions = {}): Editor | nu
       }),
     [],
   );
+  const collaborationExtensions = useMemo(
+    () =>
+      sharedDocument
+        ? createFolioCollaborationExtensions(
+            {
+              document: sharedDocument,
+              field: sharedField,
+              provider,
+              manageConnection,
+              get user() {
+                return latestOptions.current.collaboration?.user;
+              },
+              onStatusChange: (status) =>
+                latestOptions.current.collaboration?.onStatusChange?.(status),
+              onError: (error) => {
+                latestOptions.current.collaboration?.onError?.(error);
+                latestOptions.current.onError?.(error);
+              },
+            },
+            () => mayWrite.current,
+          )
+        : [],
+    [sharedDocument, sharedField, provider, manageConnection],
+  );
+  const commentStore = options.comments?.store;
+  const commentExtensions = useMemo(
+    () =>
+      commentStore
+        ? [
+            createFolioCommentsExtension({
+              store: commentStore,
+              onError: (error) => {
+                latestOptions.current.comments?.onError?.(error);
+                latestOptions.current.onError?.(error);
+              },
+            }),
+          ]
+        : [],
+    [commentStore],
+  );
   const tiptapExtensions = useMemo(
     () => [
-      ...createDefaultTiptapExtensions({
-        folioExtensions: [{ name: "folioHostExtensions", tiptapExtensions: schemaExtensions }],
-        messages,
-        placeholder: options.placeholder,
-      }),
+      ...(collaborative ? withoutFolioHistory : (value: AnyExtension[]) => value)(
+        createDefaultTiptapExtensions({
+          folioExtensions: [{ name: "folioHostExtensions", tiptapExtensions: schemaExtensions }],
+          messages,
+          placeholder: options.placeholder,
+        }),
+      ),
+      ...collaborationExtensions,
+      ...commentExtensions,
       writeGuard,
+      createFolioClipboardExtension({
+        getOptions: () => latestOptions.current.clipboard,
+        canWrite: () => mayWrite.current,
+        isCurrentEditor: (instance) => editorRef.current === instance,
+        getDocumentId: () => latestOptions.current.documentId,
+        parseDocument: (value) => validation.validator!.parse(value),
+        extensions: [{ name: "folioHostExtensions", tiptapExtensions: schemaExtensions }],
+        onError: (error) => latestOptions.current.onError?.(error),
+      }),
     ],
-    [messages, schemaExtensions, options.placeholder, writeGuard],
+    [
+      messages,
+      schemaExtensions,
+      options.placeholder,
+      writeGuard,
+      validation,
+      collaborationExtensions,
+      commentExtensions,
+      collaborative,
+    ],
   );
 
   const editor = useEditor(
     {
-      content: contentRef.current,
+      content: collaborative ? undefined : contentRef.current,
       editable,
       extensions: tiptapExtensions,
       immediatelyRender: false,
-      onUpdate: ({ editor: updatedEditor }) => {
-        if (!mayWrite.current) return;
+      onUpdate: ({ editor: updatedEditor, transaction }) => {
+        if (
+          !mayWrite.current &&
+          !(latestOptions.current.collaboration && isFolioCollaborationTransaction(transaction))
+        )
+          return;
         const value = updatedEditor.getJSON() as FolioDocument;
         contentRef.current = value;
         try {
@@ -161,6 +261,12 @@ export function useFolioEditor(options: UseFolioEditorOptions = {}): Editor | nu
   useEffect(() => {
     editor?.setEditable(editable, false);
   }, [editor, editable]);
+  useEffect(() => {
+    provider?.awareness?.setLocalStateField(
+      "user",
+      normalizeFolioCollaborationUser({ id: userId, name: userName, color: userColor }),
+    );
+  }, [editor, provider, userId, userName, userColor]);
 
   return editor;
 }

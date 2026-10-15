@@ -1,8 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 const storageKey = "futelab.folio.demo.pages";
+async function editorContentText(editor: Locator) {
+  return editor.evaluate((element) => {
+    const content = element.cloneNode(true) as HTMLElement;
+    content.querySelectorAll(".folio-collaboration-cursor").forEach((cursor) => cursor.remove());
+    return content.textContent;
+  });
+}
 
 test("demo saves versioned snapshots and restores the latest draft after reload", async ({
   page,
@@ -133,6 +140,29 @@ test("demo read-only mode blocks document mutations and still allows exporting",
   await expect(page.getByRole("button", { name: "Import", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Export", exact: true })).toBeEnabled();
   await expect(page.getByRole("toolbar", { name: "Document actions" })).toHaveCount(0);
+  const browsing = page.getByRole("toolbar", { name: "Document browsing", exact: true });
+  await expect(browsing).toBeVisible();
+  await browsing.getByRole("button", { name: "Find and replace", exact: true }).click();
+  const search = page.getByRole("search", { name: "Find and replace", exact: true });
+  await search.getByRole("searchbox", { name: "Find in document", exact: true }).fill("reusable");
+  await expect(search.getByRole("button", { name: "Next match", exact: true })).toBeEnabled();
+  await expect(search.getByRole("textbox", { name: "Replace with", exact: true })).toBeDisabled();
+  await expect(search.getByRole("button", { name: "Replace", exact: true })).toBeDisabled();
+  await expect(search.getByRole("button", { name: "Replace all", exact: true })).toBeDisabled();
+  await search.getByRole("button", { name: "Close search", exact: true }).click();
+  await browsing.getByRole("button", { name: "Comments", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "Comments", exact: true })).toBeVisible();
+  await browsing.getByRole("button", { name: "Comments", exact: true }).click();
+  await browsing.getByRole("button", { name: "Version history", exact: true }).click();
+  const history = page.getByRole("dialog", { name: "Version history", exact: true });
+  await expect(
+    history.getByRole("button", { name: "Save current version", exact: true }),
+  ).toBeDisabled();
+  await history.getByRole("button", { name: /Initial demo version/ }).click();
+  await expect(
+    history.getByRole("button", { name: "Restore this version", exact: true }),
+  ).toBeDisabled();
+  await history.getByRole("button", { name: "Close version history", exact: true }).click();
   await page.locator(".ProseMirror").click();
   await page.keyboard.type("Must not be inserted");
   expect(await page.locator(".ProseMirror").textContent()).toBe(before);
@@ -405,4 +435,160 @@ test("embedded image uploads respect the document budget before changing the dra
   await expect(page.locator(".ProseMirror")).toHaveAttribute("contenteditable", "true");
   await page.getByRole("button", { name: /Design review notes/ }).click();
   await expect(page.getByTestId("demo-feedback")).toHaveCount(0);
+});
+
+test("feature laboratory switches toolbar slots and mounts a working slash menu in a portal", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page", exact: true }).click();
+  const editor = page.locator(".ProseMirror");
+  await editor.fill("Preserved text");
+  await page.getByText("Feature laboratory", { exact: true }).click();
+  const mode = page.getByLabel("Toolbar mode", { exact: true });
+  await mode.selectOption("hidden");
+  await expect(page.getByRole("toolbar", { name: "Document actions", exact: true })).toHaveCount(0);
+  await expect(editor).toHaveText("Preserved text");
+  await mode.selectOption("custom");
+  await expect(page.getByTestId("demo-custom-toolbar")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Host bold action" })).toBeVisible();
+  await mode.selectOption("floating");
+  await expect(page.getByRole("toolbar", { name: "Document actions", exact: true })).toBeVisible();
+  await mode.selectOption("default");
+  await page.getByLabel("Mount floating UI outside the editor", { exact: true }).check();
+  await editor.click();
+  await page.keyboard.press("End");
+  await page.keyboard.press("Enter");
+  await page.keyboard.insertText("/head");
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  expect(await menu.evaluate((element) => Boolean(element.closest(".folio-ui-portal")))).toBe(true);
+  await menu.getByRole("menuitem", { name: /Heading 2/ }).click();
+  await page.keyboard.insertText("Portal heading");
+  await expect(editor.locator("h2")).toHaveText("Portal heading");
+  await expect(editor).toContainText("Preserved text");
+  await expect(page.getByTestId("demo-feedback")).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("combobox", { name: "Language", exact: true }).selectOption("zh-CN");
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    .toBe(true);
+  await page.getByRole("switch", { name: "只读", exact: true }).check();
+  await expect(editor).toHaveAttribute("contenteditable", "false");
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    .toBe(true);
+});
+
+test("two-person demo synchronizes independent peers and keeps a readonly peer receiving edits", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page", exact: true }).click();
+  await page.getByText("Feature laboratory", { exact: true }).click();
+  await page.getByLabel("Two-person collaboration", { exact: true }).check();
+  const editors = page.locator(".ProseMirror");
+  await expect(editors).toHaveCount(2);
+  const maya = editors.nth(0);
+  const bob = editors.nth(1);
+  await maya.fill("Maya writes");
+  await expect.poll(() => editorContentText(bob)).toBe("Maya writes");
+  await bob.click();
+  await page.keyboard.press("Home");
+  await page.keyboard.insertText("Bob and ");
+  await expect.poll(() => editorContentText(maya)).toBe("Bob and Maya writes");
+  await page.getByLabel("Make Bob read-only", { exact: true }).check();
+  await expect(bob).toHaveAttribute("contenteditable", "false");
+  await maya.click();
+  await page.keyboard.press("End");
+  await page.keyboard.insertText(" again");
+  await expect.poll(() => editorContentText(bob)).toBe("Bob and Maya writes again");
+  await page.getByLabel("Two-person collaboration", { exact: true }).uncheck();
+  await expect(editors).toHaveCount(1);
+  await expect(editors).toHaveText("Bob and Maya writes again");
+  await expect(page.getByText("Saved locally", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(editors).toHaveText("Bob and Maya writes again");
+  await expect(editors).toHaveCount(1);
+});
+
+test("demo discussions stay isolated per page and support replies and resolved threads", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page", exact: true }).click();
+  await page.getByRole("textbox", { name: "Page title", exact: true }).fill("Discussion page");
+  await page.locator(".ProseMirror").fill("Review this block");
+  await page.getByRole("button", { name: "Comments", exact: true }).click();
+  const panel = page.getByRole("complementary", { name: "Comments", exact: true });
+  await panel.getByLabel("Comment text", { exact: true }).fill("Please review");
+  await panel.getByRole("button", { name: "Comment on block", exact: true }).click();
+  await expect(panel.getByText("Please review", { exact: true })).toBeVisible();
+  await panel.getByLabel("Reply", { exact: true }).fill("Reviewed");
+  await panel.getByRole("button", { name: "Reply", exact: true }).click();
+  await expect(panel.getByText("Reviewed", { exact: true })).toBeVisible();
+  await panel.getByRole("button", { name: "Resolve", exact: true }).click();
+  await expect(panel.getByText("Resolved", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "New page", exact: true }).click();
+  await page.getByRole("button", { name: "Comments", exact: true }).click();
+  await expect(panel.getByText("No comments yet", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Discussion page/ }).click();
+  await page.getByRole("button", { name: "Comments", exact: true }).click();
+  await expect(panel.getByText("Please review", { exact: true })).toBeVisible();
+  await panel.getByRole("button", { name: "Reopen", exact: true }).click();
+  await expect(panel.getByLabel("Reply", { exact: true })).toBeVisible();
+  await panel.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(panel.getByText("No comments yet", { exact: true })).toBeVisible();
+});
+
+test("demo history restores a named revision and plain paste keeps the page deep link", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New page", exact: true }).click();
+  const editor = page.locator(".ProseMirror");
+  await editor.fill("Checkpoint content");
+  await page.getByRole("button", { name: "Version history", exact: true }).click();
+  const history = page.getByRole("dialog", { name: "Version history", exact: true });
+  await expect(history.getByRole("button", { name: /Initial demo version/ })).toBeVisible();
+  await history.getByRole("textbox", { name: "Version name", exact: true }).fill("Checkpoint A");
+  await history.getByRole("button", { name: "Save current version", exact: true }).click();
+  await expect(history.getByRole("button", { name: /Checkpoint A/ })).toBeVisible();
+  await history.getByRole("button", { name: "Close version history", exact: true }).click();
+  await editor.fill("Changed after checkpoint");
+  await page.getByRole("button", { name: "Version history", exact: true }).click();
+  await history.getByRole("button", { name: /Checkpoint A/ }).click();
+  await expect(
+    history.getByRole("button", { name: "Restore this version", exact: true }),
+  ).toBeEnabled();
+  await history.getByRole("button", { name: "Restore this version", exact: true }).click();
+  await expect(editor).toHaveText("Checkpoint content");
+  await history.getByRole("button", { name: "Close version history", exact: true }).click();
+  await page.getByText("Feature laboratory", { exact: true }).click();
+  await page.getByLabel("Paste as plain text", { exact: true }).check();
+  await editor.click();
+  await page.keyboard.press("End");
+  await editor.evaluate((element) => {
+    const transfer = new DataTransfer();
+    transfer.setData("text/plain", " Pasted plain");
+    transfer.setData("text/html", "<strong> Pasted plain</strong>");
+    const event = new ClipboardEvent("paste", {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: transfer,
+    });
+    // Firefox discards constructor-supplied clipboardData on synthetic events.
+    // Supply the same real DataTransfer to exercise the editor's paste handler.
+    if (!event.clipboardData?.types.length)
+      Object.defineProperty(event, "clipboardData", { value: transfer });
+    element.dispatchEvent(event);
+  });
+  await expect(editor).toHaveText("Checkpoint content Pasted plain");
+  await expect(editor.locator("strong")).toHaveCount(0);
+  const linkedUrl = page.url();
+  expect(new URL(linkedUrl).searchParams.get("page")).toBeTruthy();
+  await expect(page.getByText("Saved locally", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Folio editor plan/ }).click();
+  await page.goto(linkedUrl);
+  await expect(editor).toHaveText("Checkpoint content Pasted plain");
 });

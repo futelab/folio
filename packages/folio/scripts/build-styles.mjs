@@ -12,5 +12,10 @@ const tokens = readFileSync(resolve(stylesRoot, "styles.css"), "utf8")
 const editor = readFileSync(resolve(stylesRoot, "editor.css"), "utf8");
 const reader = readFileSync(resolve(stylesRoot, "reader.css"), "utf8");
 const interactions = readFileSync(resolve(here, "../../react/src/editor-interactions.css"), "utf8");
+const layout = readFileSync(resolve(stylesRoot, "layout.css"), "utf8");
+const features = readFileSync(resolve(stylesRoot, "features.css"), "utf8");
 
-writeFileSync(resolve(here, "../styles.css"), `${tokens}\n${editor}\n${reader}\n${interactions}\n`);
+writeFileSync(
+  resolve(here, "../styles.css"),
+  `${tokens}\n${editor}\n${reader}\n${interactions}\n${layout}\n${features}\n`,
+);

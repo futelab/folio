@@ -200,6 +200,37 @@ describe("block handle geometry", () => {
     );
   });
 
+  it.each([1, 2])("anchors media to its first controls row through a scale of %s", (scale) => {
+    const view = fixture();
+    const figure = document.createElement("figure");
+    figure.dataset.folioImage = "";
+    figure.innerHTML = '<img class="folio-image"><figcaption>Caption below image</figcaption>';
+    view.block.replaceWith(figure);
+    const image = figure.querySelector("img")!;
+    let imageHeight = 400 * scale;
+    const previousRect = view.rectSpy.getMockImplementation()!;
+    view.rectSpy.mockImplementation(function (this: HTMLElement) {
+      if (this === image) return new DOMRect(120, 240, 600, imageHeight);
+      if (this === figure) return new DOMRect(120, 228, 600, imageHeight + 50);
+      return previousRect.call(this);
+    });
+    view.geometry.scaleY = scale;
+    view.rerender({ target: figure });
+    expect(view.controls()).toHaveStyle({ top: `${140 / scale}px`, visibility: "visible" });
+    imageHeight = 800 * scale;
+    act(() => ResizeObserverMock.resize(figure));
+    flushFrame();
+    expect(view.controls()).toHaveStyle({ top: `${140 / scale}px` });
+    imageHeight = 16 * scale;
+    act(() => ResizeObserverMock.resize(figure));
+    flushFrame();
+    expect(view.controls()).toHaveStyle({ top: `${140 / scale - 4}px` });
+    imageHeight = 0;
+    act(() => ResizeObserverMock.resize(figure));
+    flushFrame();
+    expect(view.controls()).toHaveStyle({ top: `${128 / scale}px`, visibility: "visible" });
+  });
+
   it("coalesces captured nested scrolling, viewport resize and observed content changes", () => {
     const view = fixture();
     const actionbar = view.root.querySelector(".folio-editor-actions")!;

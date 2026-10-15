@@ -12,6 +12,8 @@ import { BlockSideControls } from "../blocks/BlockSideControls";
 import { FolioEditor } from "../FolioEditor";
 import { SlashMenu } from "../menus/SlashMenu";
 import { useFolioEditor } from "../useFolioEditor";
+import { BlockSelection, getSelectedBlocks, setBlockSelection } from "../blocks/blockSelection";
+import { createMemoryFolioHistoryAdapter } from "../history";
 
 const documentWithText = (text: string): FolioDocument => ({
   type: "doc",
@@ -24,6 +26,134 @@ const documentWithText = (text: string): FolioDocument => ({
 });
 
 describe("FolioEditor", () => {
+  it("supports keyboard block ranges, batch deletion and one-step undo", async () => {
+    let editor: Editor | undefined;
+    render(
+      <FolioEditor
+        defaultValue={{
+          type: "doc",
+          content: ["One", "Two", "Three"].map((text) => ({
+            type: "paragraph",
+            content: [{ type: "text", text }],
+          })),
+        }}
+        components={{
+          toolbar: (props) => {
+            editor = props.editor;
+            return props.children;
+          },
+        }}
+      />,
+    );
+    await waitFor(() => expect(editor).toBeDefined());
+    const content = screen.getByRole("textbox");
+    act(() => {
+      editor!.commands.setTextSelection(1);
+    });
+    fireEvent.keyDown(content, { key: "Escape" });
+    expect(editor!.state.selection).toBeInstanceOf(BlockSelection);
+    fireEvent.keyDown(content, { key: "ArrowDown", shiftKey: true });
+    expect(getSelectedBlocks(editor!).map((block) => block.node.textContent)).toEqual([
+      "One",
+      "Two",
+    ]);
+    expect(screen.queryByRole("toolbar", { name: "Text formatting" })).not.toBeInTheDocument();
+    fireEvent.keyDown(content, { key: "Delete" });
+    expect(editor!.getText()).toBe("Three");
+    act(() => {
+      editor!.commands.undo();
+    });
+    expect(editor!.getText()).toBe("One\n\nTwo\n\nThree");
+  });
+
+  it("renders host toolbar slots and can hide every built-in control", async () => {
+    const { rerender, container } = render(
+      <FolioEditor
+        ui={{ toolbar: "compact" }}
+        components={{
+          toolbar: (props) => <section aria-label="Host tools">{props.children}</section>,
+        }}
+      />,
+    );
+    expect(screen.getByLabelText("Host tools")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Find and replace" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Image$/ })).not.toBeInTheDocument();
+    rerender(
+      <FolioEditor
+        ui={{
+          toolbar: false,
+          blockControls: false,
+          bubbleToolbar: false,
+          slashMenu: false,
+          tableControls: false,
+          search: false,
+        }}
+        initialSlashQuery="/"
+      />,
+    );
+    await waitFor(() => expect(container.querySelector(".folio-editor-actions")).toBeNull());
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(container.querySelector(".folio-block-selection-gutter")).toBeNull();
+  });
+
+  it("opens the action menu for a preserved block range and duplicates the whole range", async () => {
+    let editor: Editor | undefined;
+    render(
+      <FolioEditor
+        ui={{ blockControls: false }}
+        defaultValue={{
+          type: "doc",
+          content: ["First", "Second"].map((text) => ({
+            type: "paragraph",
+            content: [{ type: "text", text }],
+          })),
+        }}
+        components={{
+          toolbar: (props) => {
+            editor = props.editor;
+            return props.children;
+          },
+        }}
+      />,
+    );
+    await waitFor(() => expect(editor).toBeDefined());
+    act(() => {
+      setBlockSelection(editor!, 0, editor!.state.doc.child(0).nodeSize);
+    });
+    fireEvent.contextMenu(screen.getByText("First"));
+    expect(screen.getByRole("menu", { name: "Block actions" })).toHaveTextContent(
+      "2 blocks selected",
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "Duplicate blocks" }));
+    await waitFor(() => expect(editor!.state.doc.childCount).toBe(4));
+    expect(editor!.getText()).toBe("First\n\nSecond\n\nFirst\n\nSecond");
+  });
+
+  it("opens find in read-only mode without enabling replacement", async () => {
+    render(<FolioEditor editable={false} defaultValue={documentWithText("Find this")} />);
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "f", ctrlKey: true });
+    const find = screen.getByRole("searchbox", { name: "Find in document" });
+    fireEvent.change(find, { target: { value: "Find" } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Next match" })).toBeEnabled());
+    expect(screen.getByRole("button", { name: /^Replace$/ })).toBeDisabled();
+    fireEvent.keyDown(find, { key: "Escape" });
+    expect(screen.queryByRole("search")).not.toBeInTheDocument();
+  });
+
+  it("opens history through the integrated toolbar", async () => {
+    render(
+      <FolioEditor
+        history={{ adapter: createMemoryFolioHistoryAdapter(), autoSaveIntervalMs: 0 }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Version history" }));
+    expect(screen.getByRole("dialog", { name: "Version history" })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save current version" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save current version" }));
+    await waitFor(() => expect(screen.queryByText("No saved revisions")).not.toBeInTheDocument());
+  });
   it("renders an editable editor surface", () => {
     render(
       <FolioEditor
@@ -379,7 +509,12 @@ describe("FolioEditor", () => {
 
     await waitFor(() => expect(editorRef.current).not.toBe(initialEditor));
 
-    expect(editorRef.current?.getJSON()).toEqual(documentWithText("Preserved edit"));
+    expect(editorRef.current?.getJSON()).toEqual({
+      type: "doc",
+      content: [
+        { ...documentWithText("Preserved edit").content![0], attrs: { folioBlockId: null } },
+      ],
+    });
     expect(screen.getByText("Preserved edit")).toBeInTheDocument();
   });
 });

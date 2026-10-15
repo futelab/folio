@@ -2,6 +2,8 @@ import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { closeHistory } from "@tiptap/pm/history";
 import { TextSelection } from "@tiptap/pm/state";
+import { canMoveBlockRange, getBlockContainers, resolveLayoutBlock } from "./blockLayout";
+import type { LayoutBlockRange, LayoutDestination } from "./blockLayout";
 
 export interface BlockPosition {
   node: ProseMirrorNode;
@@ -15,6 +17,92 @@ export interface BlockDropTarget {
   top: number;
   left: number;
   width: number;
+}
+
+export interface LayoutDropTarget extends LayoutDestination {
+  top: number;
+  left: number;
+  width: number;
+  containerType: string;
+}
+
+/** Match the model node before falling back to containment of node-view wrappers. */
+export function getLayoutBlockPosition(
+  editor: Editor | null,
+  element: HTMLElement | null,
+): BlockPosition | null {
+  if (!editor || editor.isDestroyed || !element || !editor.view.dom.contains(element)) return null;
+  let exact: BlockPosition | null = null,
+    containing: BlockPosition | null = null;
+  editor.state.doc.descendants((node, pos) => {
+    if (exact || !node.isBlock) return;
+    const dom = editor.view.nodeDOM(pos);
+    if (!(dom instanceof HTMLElement)) return;
+    const block = resolveLayoutBlock(editor, pos);
+    if (block?.pos !== pos) return;
+    if (dom === element) exact = { node, pos, element: dom };
+    else if (dom.contains(element)) containing = { node, pos, element: dom };
+  });
+  return exact ?? containing;
+}
+
+/** Horizontal indentation chooses a container; vertical position chooses its child boundary. */
+export function getLayoutDropTarget(
+  editor: Editor | null,
+  source: LayoutBlockRange,
+  point: { x: number; y: number },
+): LayoutDropTarget | null {
+  if (!editor || editor.isDestroyed) return null;
+  const candidates = getBlockContainers(editor)
+    .flatMap((container) => {
+      const element = container.pos === null ? editor.view.dom : editor.view.nodeDOM(container.pos);
+      if (!(element instanceof HTMLElement)) return [];
+      const rect = element.getBoundingClientRect(),
+        type = container.node.type.name;
+      if (container.pos === null) return [{ ...container, element, rect }];
+      const inset = type === "column" ? 0 : type === "listItem" || type === "taskItem" ? 40 : 24;
+      const verticalInset = type === "column" || type === "detailsContent" ? 0 : 8;
+      if (
+        rect.width <= 0 ||
+        rect.height <= 0 ||
+        point.x < rect.left + inset ||
+        point.x > rect.right ||
+        point.y < rect.top + verticalInset ||
+        point.y > rect.bottom - verticalInset
+      )
+        return [];
+      return [{ ...container, element, rect }];
+    })
+    .sort((a, b) => b.depth - a.depth);
+  const candidate = candidates[0];
+  if (!candidate) return null;
+  const children: Array<{ index: number; rect: DOMRect }> = [];
+  candidate.node.forEach((_node, offset, index) => {
+    const element = editor.view.nodeDOM(candidate.contentFrom + offset);
+    if (element instanceof HTMLElement)
+      children.push({ index, rect: element.getBoundingClientRect() });
+  });
+  let index = candidate.node.childCount;
+  for (const child of children)
+    if (point.y <= child.rect.top + child.rect.height / 2) {
+      index = child.index;
+      break;
+    }
+  const destination = { parentPos: candidate.pos, index };
+  if (!canMoveBlockRange(editor, source, destination)) return null;
+  const before = children.find((child) => child.index === index - 1)?.rect;
+  const after = children.find((child) => child.index === index)?.rect;
+  const top =
+    before && after
+      ? (before.bottom + after.top) / 2
+      : (after?.top ?? before?.bottom ?? candidate.rect.top);
+  return {
+    ...destination,
+    top,
+    left: candidate.rect.left,
+    width: candidate.rect.width,
+    containerType: candidate.node.type.name,
+  };
 }
 
 // Read model positions instead of counting DOM children: ProseMirror decorations

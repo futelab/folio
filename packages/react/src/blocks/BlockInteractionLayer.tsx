@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import type { DragEvent } from "react";
+import type { DragEvent, MouseEvent } from "react";
 import type { FolioMessages } from "../i18n";
 import { BlockSideControls } from "./BlockSideControls";
 import { getBlockAnchor } from "./blockDom";
@@ -13,6 +13,7 @@ export interface BlockInteractionLayerProps {
   onDragBlockEnd?: () => void;
   onDragBlockStart?: (event: DragEvent<HTMLButtonElement>) => void;
   onOpenBlockMenu: () => void;
+  onOpenBlockActions?: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
 function classNames(...values: Array<string | undefined>): string {
@@ -30,6 +31,7 @@ export function BlockInteractionLayer({
   onDragBlockEnd,
   onDragBlockStart,
   onOpenBlockMenu,
+  onOpenBlockActions,
 }: BlockInteractionLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   const observeRef = useRef<(() => void) | null>(null);
@@ -74,8 +76,14 @@ export function BlockInteractionLayer({
 
     // Absolute offsets use the overlay's padding edge, in unscaled CSS pixels.
     // Its rect already accounts for ancestor borders and scroll offsets.
+    // Media uses its first controls-height row, so captions and tall images
+    // cannot pull the grip down. Short images still center on their visible area.
+    const anchorHeight =
+      anchor.alignment === "start"
+        ? Math.min(controlsRect.height, anchor.rect.height)
+        : anchor.rect.height;
     const top =
-      (anchor.rect.top + anchor.rect.height / 2 - overlayRect.top) / scaleY -
+      (anchor.rect.top + anchorHeight / 2 - overlayRect.top) / scaleY -
       layer.clientTop +
       layer.scrollTop -
       controlsRect.height / scaleY / 2;
@@ -175,6 +183,7 @@ export function BlockInteractionLayer({
         className={sideControlsClassName}
         messages={messages}
         onAddBlock={onOpenBlockMenu}
+        onOpenBlockActions={onOpenBlockActions}
         onDragBlockEnd={onDragBlockEnd}
         onDragBlockStart={onDragBlockStart}
         style={{ visibility: "hidden" }}

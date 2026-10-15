@@ -13,6 +13,7 @@ export interface BlockSideControlsProps {
   onAddBlock: () => void;
   onDragBlockEnd?: () => void;
   onDragBlockStart?: (event: DragEvent<HTMLButtonElement>) => void;
+  onOpenBlockActions?: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
 function classNames(...values: Array<string | undefined>): string {
@@ -27,6 +28,7 @@ export function BlockSideControls({
   onAddBlock,
   onDragBlockEnd,
   onDragBlockStart,
+  onOpenBlockActions,
 }: BlockSideControlsProps) {
   if (!visible) return null;
 
@@ -56,6 +58,11 @@ export function BlockSideControls({
         aria-label={labels.dragBlock}
         className="folio-block-side-controls__button folio-block-side-controls__button--drag"
         draggable
+        aria-haspopup={onOpenBlockActions ? "menu" : undefined}
+        onClick={onOpenBlockActions}
+        onMouseDown={(event) => {
+          if (event.shiftKey) event.preventDefault();
+        }}
         onDragEnd={onDragBlockEnd}
         onDragStart={onDragBlockStart}
         title={labels.dragBlock}

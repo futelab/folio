@@ -8,6 +8,7 @@ import {
 } from "../document";
 import { createDefaultTiptapExtensions } from "../extensions/defaultExtensions";
 import { sanitizeFolioUrl } from "../security";
+import { getFolioBlockAnchorId, isFolioBlockId } from "../extensions/blockIdentity";
 import {
   assertSafeDocumentUrls,
   serializationExtensions,
@@ -102,6 +103,8 @@ function inspectHTML(html: string, options: FolioSerializationOptions, adapter: 
       "data-type",
       "data-level",
       "data-mention-suggestion-char",
+      "data-folio-block-id",
+      "data-folio-block-anchor",
       ...tags.flatMap((tag) => Array.from(tag.matchAll(/\[(data-[\w-]+)/g), (match) => match[1]!)),
       ...schemaTypes.flatMap((type) =>
         Object.keys(type.spec.attrs ?? {}).flatMap((name) => [name, `data-${name}`]),
@@ -224,6 +227,15 @@ export function createHTMLSerialization(adapter: FolioHTMLAdapter) {
     );
     try {
       const usedIds = new Set<string>();
+      for (const block of window.document.body.querySelectorAll("[data-folio-block-id]")) {
+        const id = block.getAttribute("data-folio-block-id");
+        if (isFolioBlockId(id)) {
+          const heading = block.matches("h1,h2,h3");
+          if (!heading || !block.id) block.id = getFolioBlockAnchorId(id);
+          if (!heading) usedIds.add(block.id);
+          else if (block.id !== getFolioBlockAnchorId(id)) usedIds.add(getFolioBlockAnchorId(id));
+        }
+      }
       const headings = Array.from(window.document.body.querySelectorAll("h1,h2,h3"));
       for (const [index, heading] of headings.entries()) {
         const base =
@@ -240,6 +252,17 @@ export function createHTMLSerialization(adapter: FolioHTMLAdapter) {
         while (usedIds.has(id)) id = `${base}-${suffix++}`;
         usedIds.add(id);
         heading.id = id;
+      }
+      for (const heading of headings) {
+        const blockId = heading.getAttribute("data-folio-block-id");
+        if (!isFolioBlockId(blockId)) continue;
+        const anchorId = getFolioBlockAnchorId(blockId);
+        if (heading.id === anchorId) continue;
+        const alias = window.document.createElement("span");
+        alias.id = anchorId;
+        alias.setAttribute("data-folio-block-anchor", "");
+        alias.setAttribute("aria-hidden", "true");
+        heading.before(alias);
       }
       for (const toc of window.document.body.querySelectorAll("nav[data-folio-toc]")) {
         const list = window.document.createElement("ol");

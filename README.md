@@ -1,6 +1,6 @@
 # Folio
 
-[简体中文](./README.ZH-CN.md) · [Live demo](https://futelab.github.io/folio/) · [Release guide](./docs/RELEASING.md)
+[简体中文](./README.ZH-CN.md) · [Live demo](https://futelab.github.io/folio/) · [Release guide](./docs/RELEASING.md) · [Editing capabilities and integration](https://github.com/futelab/folio/blob/main/docs/EDITOR-CAPABILITIES.md)
 
 Folio is a React document editor and reader built on Tiptap. The public package is `@futelab/folio`; documents use Tiptap-compatible JSON. MIT licensed.
 
@@ -13,6 +13,9 @@ Folio is a React document editor and reader built on Tiptap. The public package 
 - React reader with extension renderers, server rendering, stable heading anchors and bounded rendering.
 - Validated/versioned JSON persistence; HTML and Markdown import/export with explicit errors before content loss.
 - English and Simplified Chinese, per-instance translations and CSS-variable themes.
+- Block action menus, multi-block selection and batch operations, persistent block links, rich/plain clipboard handling and image paste uploads.
+- Nested block moves, two/three-column layouts, find/replace with one-step undo, toolbar modes, component slots and external floating-UI containers.
+- Yjs collaboration with presence and isolated local undo; anchored comments and revision previews/restoration through replaceable host adapters.
 
 ## Install
 
@@ -64,7 +67,9 @@ ESM and CommonJS include matching declaration files. Next.js editors belong in a
 - `locale="zh-CN"`, `translations` and `labels` customize messages. `placeholder`, `className` and `classNames` customize presentation.
 - `useFolioEditor` exposes the underlying editor for custom shells. Standalone menus and controls are also exported.
 
-Block `+` inserts a paragraph below the current top-level block. Hover a block and drag its six-dot handle to reorder it. A blue line shows the insertion position, including gaps and the start/end of the document; the source stays highlighted and the native drag preview follows the pointer. Hold near the viewport or a scroll container's top/bottom edge to scroll, and press Escape to cancel. Lists, callouts, toggles and tables move as complete top-level blocks with their content and attributes preserved. Each move is a separate undo step. Alt+Shift+ArrowUp/ArrowDown and the document action buttons provide keyboard/touch alternatives. Drag reordering stays within the same editor/document; columns and nested reparenting are not supported. Table edge buttons append to the end; focused-table actions manage rows, columns, headers and cell merging.
+Block `+` inserts a paragraph below the current top-level block. Hover a block and drag its six-dot handle to reorder it, or click the handle for block actions. A blue line identifies a compatible destination inside the same editor/document, including nested callouts, list items and columns. Hold near a scroll edge to scroll, and press Escape to cancel. Tables stay intact; invalid structural drops are rejected. Each move is a separate undo step. Escape selects the current top-level block; Shift+ArrowUp/ArrowDown extends the range, and a selected range can be copied, duplicated, deleted or dragged together. Alt+Shift+ArrowUp/ArrowDown provides keyboard movement. Table edge buttons append to the end; focused-table actions manage rows, columns, headers and cell merging.
+
+`ui.toolbar` selects `default`, `compact`, `floating` or `false`; `components` replaces presentation slots and `portalContainer` mounts floating UI outside the editor. Ctrl/Cmd+F opens find/replace; Ctrl/Cmd+Shift+V pastes plain text. `collaboration`, `comments` and `history` accept host adapters. The demo's collaboration transport, comments and versions are in memory and reset on reload; production transport, storage and server authorization belong to the host. Columns and linked block metadata require JSON or HTML for lossless export; Markdown rejects them explicitly. See the integration guide for contracts and local acceptance steps.
 
 ## Safe persistence and recovery
 

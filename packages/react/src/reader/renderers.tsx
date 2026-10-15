@@ -1,10 +1,12 @@
-import { Fragment } from "react";
-import type { ReactNode } from "react";
+import { cloneElement, Fragment, isValidElement } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 import type { JSONContent } from "@tiptap/core";
 import {
   createFolioExtensionRegistry,
   sanitizeFolioUrl,
   validateFolioDocument,
+  getFolioBlockAnchorId,
+  isFolioBlockId,
 } from "@futelab/folio-core/browser";
 import type {
   FolioDocument,
@@ -223,7 +225,9 @@ function renderText(node: JSONContent, context: RenderContext, key: string): Rea
         break;
       }
       case "link": {
-        const href = sanitizeFolioUrl(mark.attrs?.href, { kind: "link" });
+        let href = sanitizeFolioUrl(mark.attrs?.href, { kind: "link" });
+        if (href?.startsWith("#folio-block-") && context.options.headingIdPrefix)
+          href = `#${context.options.headingIdPrefix}-${href.slice(1)}`;
         if (href)
           rendered = (
             <a href={href} key={markKey} rel="noopener noreferrer" target="_blank">
@@ -327,6 +331,34 @@ function tableCellAttributes(node: JSONContent) {
 }
 
 function renderNode(node: JSONContent, context: RenderContext, path: string): ReactNode {
+  const rendered = renderNodeContent(node, context, path);
+  if (
+    isFolioBlockId(node.attrs?.folioBlockId) &&
+    isValidElement(rendered) &&
+    rendered.type !== Fragment
+  ) {
+    const element = rendered as ReactElement<Record<string, unknown>>;
+    const anchorId = getFolioBlockAnchorId(
+      node.attrs.folioBlockId,
+      context.options.headingIdPrefix,
+    );
+    const linked = cloneElement(element, {
+      id: element.props.id ?? anchorId,
+      "data-folio-block-id": node.attrs.folioBlockId,
+    });
+    return element.props.id && element.props.id !== anchorId ? (
+      <Fragment key={path}>
+        <span id={anchorId} data-folio-block-anchor="" aria-hidden="true" />
+        {linked}
+      </Fragment>
+    ) : (
+      linked
+    );
+  }
+  return rendered;
+}
+
+function renderNodeContent(node: JSONContent, context: RenderContext, path: string): ReactNode {
   context.remaining -= 1;
   const contribution = context.renderers.get(`node:${node.type}`);
   if (contribution)
@@ -385,6 +417,24 @@ function renderNode(node: JSONContent, context: RenderContext, path: string): Re
       );
     case "blockquote":
       return <blockquote key={path}>{renderChildren(node.content, context, path)}</blockquote>;
+    case "columns":
+      return (
+        <div className="folio-columns" data-folio-columns="" key={path}>
+          {renderChildren(node.content, context, path)}
+        </div>
+      );
+    case "column":
+      return (
+        <div
+          className="folio-column"
+          data-folio-column=""
+          data-width={Number(node.attrs?.width ?? 1)}
+          style={{ "--folio-column-width": Number(node.attrs?.width ?? 1) } as CSSProperties}
+          key={path}
+        >
+          {renderChildren(node.content, context, path)}
+        </div>
+      );
     case "horizontalRule":
       return <hr key={path} />;
     case "codeBlock": {
