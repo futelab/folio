@@ -1,4 +1,4 @@
-export const folioReactVersion = "0.1.2";
+export const folioReactVersion = "0.1.3";
 
 export * from "./blocks/BlockControls";
 export * from "./blocks/BlockInteractionLayer";

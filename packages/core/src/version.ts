@@ -1,1 +1,1 @@
-export const folioCoreVersion = "0.1.2";
+export const folioCoreVersion = "0.1.3";
