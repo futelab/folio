@@ -1,5 +1,19 @@
 # @futelab/folio
 
+## 0.2.0
+
+Upgrade note: the default schema now includes `columns`, `column` and `folioBlockId` (including null attributes on ordinary blocks). Upgrade editors, readers, converters and collaborating clients together. Version 0.1 validators may reject documents produced by 0.2; retain original backups for rollback or migrate explicitly. The snapshot envelope remains version 1 and does not imply backward schema compatibility.
+
+### Minor Changes
+
+- 9691de3: Add block action menus and stable block links, multi-block selection and batch operations, composable editor UI with external floating portals, and schema-aware rich-text, plain-text and image clipboard flows.
+
+  Add nested block dragging and responsive columns with adjustable widths, plus document find and replace with keyboard navigation, read-only browsing and undo support.
+
+  Expose Yjs collaboration integration, anchored comment stores and revision history adapters with preview and restore. Provide in-memory demo implementations; production transport, persistence and server authorization remain host responsibilities.
+
+  Stabilize block controls across callout text and padding, single-body toggle panels, nested column gutters and image captions. Keep image controls at the visual top through loading, resizing and failed-image states. Expand cross-browser coverage and document the new integration contracts.
+
 ## 0.1.3
 
 ### Patch Changes
