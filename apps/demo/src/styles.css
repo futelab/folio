@@ -219,7 +219,7 @@ select {
   opacity: 0.5;
 }
 
-.folio-demo :is(button, input, select):focus-visible {
+.folio-demo :is(button, input, select):not(.folio-demo__title):focus-visible {
   outline: 2px solid #4b7761;
   outline-offset: 3px;
 }
