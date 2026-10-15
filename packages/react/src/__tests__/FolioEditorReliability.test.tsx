@@ -235,7 +235,9 @@ describe("editor reliability boundaries", () => {
         }}
       />,
     );
-    fireEvent.mouseMove(container.querySelector("table")!);
+    const tableElement = container.querySelector("table")!;
+    vi.spyOn(tableElement, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 400, 180));
+    fireEvent.mouseMove(tableElement);
     fireEvent.click(screen.getByRole("button", { name: "Add table row" }));
     fireEvent.click(screen.getByRole("button", { name: "Add table column" }));
     await waitFor(() => expect(onChange).toHaveBeenCalled());
@@ -253,6 +255,46 @@ describe("editor reliability boundaries", () => {
       ["B1", "B2", ""],
       ["", "", ""],
     ]);
+  });
+
+  it("keeps selected table actions visible when hovering a different block", () => {
+    const { container } = render(
+      <FolioEditor
+        defaultValue={{
+          type: "doc",
+          content: [
+            {
+              type: "table",
+              content: [
+                {
+                  type: "tableRow",
+                  content: [
+                    {
+                      type: "tableCell",
+                      content: [{ type: "paragraph", content: [{ type: "text", text: "Cell" }] }],
+                    },
+                  ],
+                },
+              ],
+            },
+            { type: "paragraph", content: [{ type: "text", text: "Outside the table" }] },
+          ],
+        }}
+      />,
+    );
+    const editorDOM = container.querySelector(".ProseMirror") as HTMLElement & { editor: Editor };
+    const editor = editorDOM.editor;
+    const table = editorDOM.querySelector("table")!;
+    const cell = table.querySelector("td")!;
+    fireEvent.mouseMove(table);
+    act(() => {
+      editor.commands.setTextSelection(editor.view.posAtDOM(cell, 0) + 1);
+    });
+    expect(screen.getByRole("group", { name: "Table actions" })).toBeInTheDocument();
+    const selection = editor.state.selection.toJSON();
+    fireEvent.mouseMove(screen.getByText("Outside the table"));
+    expect(editor.state.selection.toJSON()).toEqual(selection);
+    expect(screen.getByRole("group", { name: "Table actions" })).toBeInTheDocument();
   });
 
   it("edits existing image metadata without inserting a duplicate", async () => {

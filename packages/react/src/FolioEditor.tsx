@@ -499,7 +499,7 @@ export function FolioEditor(props: FolioEditorProps) {
     connectedHoveredBlock ??
     (editorHasFocus || rootHasFocus || blockMenuOpen ? connectedFocusedBlock : null);
   const activeTable = activeBlock?.matches("table") ? activeBlock : null;
-  const tableSelectionActive = Boolean(editor?.isActive("table") && focusedBlock === activeTable);
+  const tableSelectionActive = Boolean(editor?.isActive("table"));
   const selectedMedia =
     editor?.state.selection instanceof NodeSelection &&
     (editor.state.selection.node.type.name === "image" ||
