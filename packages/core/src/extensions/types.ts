@@ -1,4 +1,4 @@
-import type { Extension } from "@tiptap/core";
+import type { AnyExtension } from "@tiptap/core";
 import type { FolioJSONContent } from "../document";
 
 export type FolioCommandAction = (context: FolioCommandContext) => boolean;
@@ -49,7 +49,13 @@ export interface FolioCommandContribution {
 
 export interface FolioRendererContribution {
   type: string;
-  render: (node: FolioJSONContent) => unknown;
+  kind?: "node" | "mark";
+  render: (node: FolioJSONContent, context: FolioRenderContext) => unknown;
+}
+
+export interface FolioRenderContext {
+  children: unknown;
+  path: string;
 }
 
 export interface FolioExtension {
@@ -58,5 +64,5 @@ export interface FolioExtension {
   marks?: FolioMarkContribution[];
   commands?: FolioCommandContribution[];
   renderers?: FolioRendererContribution[];
-  tiptapExtensions?: Extension[];
+  tiptapExtensions?: AnyExtension[];
 }

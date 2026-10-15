@@ -12,7 +12,7 @@ export interface BlockControlsProps {
 
 function insertParagraph(editor: Editor | null): boolean {
   try {
-    if (!editor) return false;
+    if (!editor?.isEditable) return false;
 
     const chain = editor.chain().focus().insertContent({ type: "paragraph" });
     const result = chain.run();
@@ -25,6 +25,8 @@ function insertParagraph(editor: Editor | null): boolean {
 
 export function BlockControls({ editor, className, messages }: BlockControlsProps) {
   const labels = resolveFolioMessages({ messages }).ui.blockControls;
+
+  if (editor && !editor.isEditable) return null;
 
   return (
     <div className={className ?? "folio-block-controls"}>

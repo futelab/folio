@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/core";
+import { NodeSelection } from "@tiptap/pm/state";
 
 export interface FolioBlockAnchor {
   element: HTMLElement;
@@ -14,12 +15,16 @@ export const FOLIO_BLOCK_SELECTOR = [
   "ol",
   "blockquote",
   "pre",
+  "hr",
   "table",
   "details",
   '[data-type="details"]',
   ".folio-callout",
   ".folio-bookmark",
   ".folio-image",
+  "[data-folio-image]",
+  "[data-folio-toc]",
+  ".folio-toc",
 ].join(",");
 
 function targetElement(target: EventTarget | Node | null): HTMLElement | null {
@@ -39,16 +44,22 @@ export function findBlockElement(
 
   let current: HTMLElement | null = element;
   let block: HTMLElement | null = null;
+  let topLevel: HTMLElement | null = null;
 
   while (current && current !== root) {
     if (current.matches(FOLIO_BLOCK_SELECTOR)) {
       block = current;
     }
+    if (
+      current.parentElement === root &&
+      !current.matches(".ProseMirror-gapcursor, .ProseMirror-widget")
+    )
+      topLevel = current;
 
     current = current.parentElement;
   }
 
-  return block;
+  return block ?? topLevel;
 }
 
 export function getCurrentBlockElement(editor: Editor | null): HTMLElement | null {
@@ -56,16 +67,16 @@ export function getCurrentBlockElement(editor: Editor | null): HTMLElement | nul
 
   if (!editor || !selection) return null;
 
-  const node = editor.view.domAtPos(selection.from).node;
+  const node =
+    selection instanceof NodeSelection
+      ? editor.view.nodeDOM(selection.from)
+      : editor.view.domAtPos(selection.from).node;
 
   return findBlockElement(node, editor.view.dom);
 }
 
 function isHiddenNode(node: Node): boolean {
-  const parent =
-    node instanceof HTMLElement
-      ? node
-      : node.parentElement ?? node.parentNode;
+  const parent = node instanceof HTMLElement ? node : (node.parentElement ?? node.parentNode);
 
   return parent instanceof HTMLElement && Boolean(parent.closest("[hidden]"));
 }
@@ -111,10 +122,7 @@ export function getBlockAnchor(element: HTMLElement): FolioBlockAnchor {
   };
 }
 
-export function focusBlockElement(
-  editor: Editor | null,
-  element: HTMLElement | null,
-): boolean {
+export function focusBlockElement(editor: Editor | null, element: HTMLElement | null): boolean {
   if (!editor || !element || !editor.view.dom.contains(element)) return false;
 
   try {

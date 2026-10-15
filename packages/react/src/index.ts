@@ -1,4 +1,4 @@
-export const folioReactVersion = "0.1.0-alpha.0";
+export const folioReactVersion = "0.1.0";
 
 export * from "./blocks/BlockControls";
 export * from "./blocks/BlockInteractionLayer";
@@ -13,3 +13,6 @@ export * from "./menus/SlashMenu";
 export * from "./reader/renderers";
 export * from "./tables/TableControls";
 export * from "./useFolioEditor";
+export * from "./editorLabels";
+export type { FolioImageUpload, FolioImageUploadResult } from "./menus/MediaDialog";
+export type { FolioMentionItem } from "./menus/MentionPicker";

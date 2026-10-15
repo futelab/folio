@@ -22,10 +22,7 @@ import {
   Text,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import {
-  getSlashMenuCommands,
-  groupSlashMenuCommands,
-} from "./slashMenuUtils";
+import { getSlashMenuCommands, groupSlashMenuCommands } from "./slashMenuUtils";
 import type { FolioMessages } from "../i18n";
 import { resolveFolioMessages } from "../i18n";
 
@@ -43,9 +40,7 @@ export interface SlashMenuProps {
 }
 
 function getMenuItems(menu: HTMLElement): HTMLButtonElement[] {
-  return Array.from(
-    menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
-  );
+  return Array.from(menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
 }
 
 const commandIcons = {
@@ -64,10 +59,7 @@ const commandIcons = {
   Quote,
   Table,
   Text,
-} satisfies Record<
-  NonNullable<FolioCommandContribution["icon"]>,
-  LucideIcon
->;
+} satisfies Record<NonNullable<FolioCommandContribution["icon"]>, LucideIcon>;
 
 function focusMenuItem(
   menu: HTMLElement,
@@ -77,8 +69,7 @@ function focusMenuItem(
   const items = getMenuItems(menu);
   if (!items.length) return;
 
-  const currentIndex =
-    currentItem instanceof HTMLButtonElement ? items.indexOf(currentItem) : -1;
+  const currentIndex = currentItem instanceof HTMLButtonElement ? items.indexOf(currentItem) : -1;
   const targetIndex = nextIndex(currentIndex, items.length);
 
   items[targetIndex]?.focus();
@@ -88,19 +79,24 @@ function handleMenuKeyDown(
   event: KeyboardEvent<HTMLDivElement>,
   onRequestClose?: () => void,
 ): void {
+  if (event.nativeEvent.isComposing || event.keyCode === 229) return;
   const menu = event.currentTarget;
 
   switch (event.key) {
     case "ArrowDown":
       event.preventDefault();
-      focusMenuItem(menu, event.target, (currentIndex, itemCount) =>
-        (currentIndex + 1 + itemCount) % itemCount,
+      focusMenuItem(
+        menu,
+        event.target,
+        (currentIndex, itemCount) => (currentIndex + 1 + itemCount) % itemCount,
       );
       break;
     case "ArrowUp":
       event.preventDefault();
-      focusMenuItem(menu, event.target, (currentIndex, itemCount) =>
-        (currentIndex - 1 + itemCount) % itemCount,
+      focusMenuItem(
+        menu,
+        event.target,
+        (currentIndex, itemCount) => (currentIndex - 1 + itemCount) % itemCount,
       );
       break;
     case "Home":
@@ -161,7 +157,7 @@ export function SlashMenu({
     activeItem.scrollIntoView({ block: "nearest" });
   }, [activeIndex, displayedCommands.length]);
 
-  if (!filteredCommands.length) return null;
+  if (!filteredCommands.length || (editor && !editor.isEditable)) return null;
 
   return (
     <div
@@ -170,6 +166,7 @@ export function SlashMenu({
       onKeyDown={(event) => handleMenuKeyDown(event, onRequestClose)}
       ref={menuRef}
       role="menu"
+      tabIndex={-1}
       style={style}
     >
       {groupedCommands.map((group) => (
@@ -180,18 +177,17 @@ export function SlashMenu({
           {group.commands.map((command) => {
             const index = displayedCommands.indexOf(command);
             const isActive = index === activeIndex;
-            const Icon = command.icon
-              ? (commandIcons[command.icon] ?? Text)
-              : Text;
+            const Icon = command.icon ? (commandIcons[command.icon] ?? Text) : Text;
 
             return (
               <button
                 aria-label={command.label}
-                aria-selected={isActive ? "true" : undefined}
+                aria-current={isActive ? "true" : undefined}
                 className="folio-slash-menu__item"
                 data-active={isActive ? "true" : undefined}
                 key={command.name}
                 onClick={() => {
+                  if (editor && !editor.isEditable) return;
                   if (onCommandSelect) {
                     onCommandSelect(command);
                     return;
@@ -208,9 +204,7 @@ export function SlashMenu({
                   <Icon aria-hidden size={17} />
                 </span>
                 <span className="folio-slash-menu__item-copy">
-                  <span className="folio-slash-menu__item-label">
-                    {command.label}
-                  </span>
+                  <span className="folio-slash-menu__item-label">{command.label}</span>
                   {command.description ? (
                     <span className="folio-slash-menu__item-description">
                       {command.description}

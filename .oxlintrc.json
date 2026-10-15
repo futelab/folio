@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "jsx-a11y"],
+  "categories": { "correctness": "error" },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/jsx-key": "error",
+    "jsx-a11y/alt-text": "error",
+    "jsx-a11y/prefer-tag-over-role": "off"
+  },
+  "overrides": [
+    {
+      "files": ["packages/react/src/useFolioEditor.ts", "packages/react/src/FolioEditor.tsx"],
+      "rules": { "react/refs": "off", "react/set-state-in-effect": "off" }
+    }
+  ],
+  "ignorePatterns": [
+    "**/dist/**",
+    "node_modules/**",
+    ".tmp/**",
+    "test-results/**",
+    "playwright-report/**",
+    "coverage/**"
+  ]
+}

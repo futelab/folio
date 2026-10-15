@@ -39,11 +39,7 @@ describe("FolioEditor", () => {
 
   it("renders slash commands for an initial slash query", () => {
     render(
-      <FolioEditor
-        value={createEmptyFolioDocument()}
-        onChange={vi.fn()}
-        initialSlashQuery="/"
-      />,
+      <FolioEditor value={createEmptyFolioDocument()} onChange={vi.fn()} initialSlashQuery="/" />,
     );
 
     expect(screen.getByRole("menu", { name: "Slash commands" })).toBeInTheDocument();
@@ -105,11 +101,7 @@ describe("FolioEditor", () => {
 
   it("does not render slash commands for non-slash queries", () => {
     const { rerender } = render(
-      <FolioEditor
-        value={createEmptyFolioDocument()}
-        onChange={vi.fn()}
-        initialSlashQuery=""
-      />,
+      <FolioEditor value={createEmptyFolioDocument()} onChange={vi.fn()} initialSlashQuery="" />,
     );
 
     expect(screen.queryByRole("menu", { name: "Slash commands" })).not.toBeInTheDocument();
@@ -181,32 +173,18 @@ describe("FolioEditor", () => {
       },
     ];
 
-    render(
-      <SlashMenu
-        activeIndex={1}
-        commands={commands}
-        editor={null}
-        query="/"
-      />,
-    );
+    render(<SlashMenu activeIndex={1} commands={commands} editor={null} query="/" />);
 
     expect(screen.getByText("Basic")).toBeInTheDocument();
     expect(screen.getByText("Media")).toBeInTheDocument();
     expect(screen.getByText("Start with plain text")).toBeInTheDocument();
     expect(screen.getByText("Embed an image by URL")).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: /Image/ })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    expect(screen.getByRole("menuitem", { name: /Image/ })).toHaveAttribute("aria-current", "true");
   });
 
   it("moves active slash command selection in grouped display order", () => {
     render(
-      <FolioEditor
-        value={createEmptyFolioDocument()}
-        onChange={vi.fn()}
-        initialSlashQuery="/"
-      />,
+      <FolioEditor value={createEmptyFolioDocument()} onChange={vi.fn()} initialSlashQuery="/" />,
     );
 
     const editorRoot = screen.getByTestId("folio-editor");
@@ -215,12 +193,9 @@ describe("FolioEditor", () => {
       fireEvent.keyDown(editorRoot, { key: "ArrowDown" });
     }
 
-    expect(screen.getByRole("menuitem", { name: "Image" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    expect(screen.getByRole("menuitem", { name: "Image" })).toHaveAttribute("aria-current", "true");
     expect(screen.getByRole("menuitem", { name: "Quote" })).not.toHaveAttribute(
-      "aria-selected",
+      "aria-current",
       "true",
     );
   });
@@ -262,18 +237,14 @@ describe("FolioEditor", () => {
   it("hides the text formatting toolbar until text is selected", () => {
     render(<FolioEditor value={documentWithText("Selectable")} onChange={vi.fn()} />);
 
-    expect(
-      screen.queryByRole("toolbar", { name: "Text formatting" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("toolbar", { name: "Text formatting" })).not.toBeInTheDocument();
   });
 
   it("does not render contextual block controls before a block is active", () => {
     render(<FolioEditor value={createEmptyFolioDocument()} onChange={vi.fn()} />);
 
-    expect(screen.queryByRole("button", { name: "Insert block" })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Add block below" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Document actions" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add block below" })).not.toBeInTheDocument();
   });
 
   it("renders accessible block side controls when visible", () => {
@@ -320,9 +291,7 @@ describe("FolioEditor", () => {
       />,
     );
 
-    expect(screen.getByTestId("folio-block-side-controls")).toHaveClass(
-      "custom-block-controls",
-    );
+    expect(screen.getByTestId("folio-block-side-controls")).toHaveClass("custom-block-controls");
   });
 
   it("preserves uncontrolled edits when editor extensions are recreated", async () => {

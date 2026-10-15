@@ -1,5 +1,6 @@
 export * from "./version";
 export * from "./document";
+export * from "./security";
 export * from "./fixtures";
 export * from "./i18n";
 export * from "./extensions/types";

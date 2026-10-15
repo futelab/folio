@@ -37,10 +37,7 @@ function DragButton({
 }
 
 function shouldUseStableFallback(): boolean {
-  return (
-    typeof process !== "undefined" &&
-    process.env.NODE_ENV === "test"
-  );
+  return typeof process !== "undefined" && process.env.NODE_ENV === "test";
 }
 
 export function FolioDragHandle({
@@ -50,16 +47,14 @@ export function FolioDragHandle({
 }: FolioDragHandleProps) {
   const label = resolveFolioMessages({ messages }).ui.blockControls.dragBlock;
 
+  if (editor && !editor.isEditable) return null;
+
   if (!editor || shouldUseStableFallback()) {
     return <DragButton className={className} disabled={!editor} label={label} />;
   }
 
   return (
-    <TiptapDragHandle
-      className={className}
-      editor={editor as TiptapDragHandleEditor}
-      nested
-    >
+    <TiptapDragHandle className={className} editor={editor as TiptapDragHandleEditor} nested>
       <DragButton className={`${className}__button`} label={label} />
     </TiptapDragHandle>
   );

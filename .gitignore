@@ -8,3 +8,12 @@ dist/
 .turbo/
 .DS_Store
 test-results/
+.tmp/
+playwright-report/
+coverage/
+*.tgz
+*.pack-backup
+packages/folio/README.md
+packages/folio/README.ZH-CN.md
+packages/folio/LICENSE
+output/playwright/

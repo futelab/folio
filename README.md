@@ -1,541 +1,129 @@
 # Folio
 
-[简体中文](./README.ZH-CN.md)
+[简体中文](./README.ZH-CN.md) · [Live demo](https://futelab.github.io/folio/) · [Release guide](./docs/RELEASING.md)
 
-Folio is a React component library for building Notion-like rich text editing
-and reading experiences. It is JSON-first, powered by Tiptap, and packaged as
-`@futelab/folio` for reuse across product apps that need document editing,
-preview, publishing, or read-only rendering.
-
-The package is currently in alpha. The public API is usable, but expect small
-breaking changes while the editor interaction model and extension surface are
-still being refined.
+Folio is a React document editor and reader built on Tiptap. The public package is `@futelab/folio`; documents use Tiptap-compatible JSON. MIT licensed.
 
 ## Features
 
-- Composed React editor with a Notion-like writing surface.
-- Slash command menu opened by typing `/`.
-- Block side controls for opening block commands from the current row.
-- Floating text formatting toolbar for selected text.
-- Table controls for adding rows and columns in place.
-- Reader component that renders saved Folio JSON without mounting an editor.
-- JSON document helpers, default Tiptap extensions, default block commands, and
-  HTML/Markdown serialization utilities.
-- One CSS entry point with theme variables and class hooks.
+- Paragraphs, H1–H3, nested lists and tasks, quotes, dividers, code, resizable tables, images with captions, bookmarks, callouts, toggles, mentions and a table of contents.
+- Searchable slash commands, selection formatting, block insertion, drag ordering and keyboard alternatives.
+- Image URL and upload flows, editable media metadata, links, mention candidates and table management.
+- Transaction-level read-only mode, controlled/uncontrolled state and isolated document histories.
+- React reader with extension renderers, server rendering, stable heading anchors and bounded rendering.
+- Validated/versioned JSON persistence; HTML and Markdown import/export with explicit errors before content loss.
+- English and Simplified Chinese, per-instance translations and CSS-variable themes.
 
-## Installation
+## Install
 
-```bash
+```sh
 pnpm add @futelab/folio react react-dom
 ```
 
-React and React DOM are peer dependencies. Folio supports React 18 and newer.
-
-Import the package stylesheet once in your application entry:
-
-```ts
-import "@futelab/folio/styles.css";
-```
-
-For example, in a Vite app this usually goes in `src/main.tsx`. In a Next.js
-App Router project, import it from `app/layout.tsx` or another global stylesheet
-entry.
-
-## Quick Start
-
-```tsx
-import { useState } from "react";
-import "@futelab/folio/styles.css";
-import { createEmptyFolioDocument } from "@futelab/folio/core";
-import type { FolioDocument } from "@futelab/folio/core";
-import { FolioEditor, FolioReader } from "@futelab/folio/react";
-
-export function ArticleEditor() {
-  const [document, setDocument] = useState<FolioDocument>(() =>
-    createEmptyFolioDocument(),
-  );
-
-  return (
-    <div className="article-editor">
-      <FolioEditor
-        value={document}
-        onChange={setDocument}
-        placeholder="Type '/' for commands"
-      />
-
-      <aside>
-        <FolioReader value={document} />
-      </aside>
-    </div>
-  );
-}
-```
-
-The editor emits a `FolioDocument`, which is Tiptap-compatible JSON. Store this
-JSON in your database or local state. Use HTML or Markdown only when importing,
-exporting, or rendering into another system.
-
-## Client Rendering
-
-`FolioEditor` is an interactive browser component. In Next.js App Router, put it
-inside a client component:
+React 18.3 and 19 are covered by packed-consumer tests. Development and CI use Node 24 and the pnpm version in `package.json`.
 
 ```tsx
 "use client";
-
 import { useState } from "react";
-import { createEmptyFolioDocument } from "@futelab/folio/core";
-import type { FolioDocument } from "@futelab/folio/core";
-import { FolioEditor } from "@futelab/folio/react";
-
-export function ClientEditor() {
-  const [value, setValue] = useState<FolioDocument>(() =>
-    createEmptyFolioDocument(),
-  );
-
-  return <FolioEditor value={value} onChange={setValue} />;
-}
-```
-
-`FolioReader` is the right component for read-only document pages because it
-renders regular React elements instead of a ProseMirror editor.
-
-## Editor Usage
-
-### Controlled Editor
-
-Use `value` and `onChange` when your app owns the document state.
-
-```tsx
-import type { FolioDocument } from "@futelab/folio/core";
-import { FolioEditor } from "@futelab/folio/react";
-
-interface Props {
-  value: FolioDocument;
-  onSaveDraft: (value: FolioDocument) => void;
-}
-
-export function ControlledFolioEditor({ value, onSaveDraft }: Props) {
-  return (
-    <FolioEditor
-      value={value}
-      onChange={onSaveDraft}
-      placeholder="Write something..."
-    />
-  );
-}
-```
-
-This is the recommended mode for product forms, autosave flows, collaborative
-state, and editor + preview layouts.
-
-### Uncontrolled Editor
-
-Use `defaultValue` when you only need an initial document and want to receive
-changes without feeding the value back into the editor every render.
-
-```tsx
-import {
-  createEmptyFolioDocument,
-  type FolioDocument,
-} from "@futelab/folio/core";
-import { FolioEditor } from "@futelab/folio/react";
-
-export function DraftEditor() {
-  function handleChange(nextDocument: FolioDocument) {
-    window.localStorage.setItem("draft", JSON.stringify(nextDocument));
-  }
-
-  return (
-    <FolioEditor
-      defaultValue={createEmptyFolioDocument()}
-      onChange={handleChange}
-    />
-  );
-}
-```
-
-### Read-only Editor
-
-Set `editable={false}` if you need the editor layout but want to disable edits:
-
-```tsx
-<FolioEditor value={document} editable={false} />
-```
-
-For publishing and static previews, prefer `FolioReader`.
-
-## Reader Usage
-
-```tsx
-import type { FolioDocument } from "@futelab/folio/core";
-import { FolioReader } from "@futelab/folio/react";
-
-export function PublishedArticle({ document }: { document: FolioDocument }) {
-  return <FolioReader className="article-body" value={document} />;
-}
-```
-
-`FolioReader` supports the default Folio document nodes, including paragraphs,
-headings, lists, task lists, blockquotes, code blocks, images, tables, toggles,
-callouts, bookmarks, mentions, and table of contents blocks.
-
-The reader sanitizes link and image URLs before rendering. Links allow `http:`,
-`https:`, `mailto:`, `tel:`, and safe relative URLs. Images allow `http:`,
-`https:`, safe relative URLs, and base64 data image URLs.
-
-## Saving and Loading Documents
-
-Folio documents are plain JSON. A typical save flow looks like this:
-
-```tsx
-import { useEffect, useState } from "react";
-import {
-  createEmptyFolioDocument,
-  isFolioDocument,
-  type FolioDocument,
-} from "@futelab/folio/core";
-import { FolioEditor } from "@futelab/folio/react";
-
-const STORAGE_KEY = "my-app.article";
-
-function loadDocument(): FolioDocument {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : undefined;
-
-    return isFolioDocument(parsed) ? parsed : createEmptyFolioDocument();
-  } catch {
-    return createEmptyFolioDocument();
-  }
-}
-
-export function LocalDraft() {
-  const [document, setDocument] = useState<FolioDocument>(loadDocument);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(document));
-  }, [document]);
-
-  return <FolioEditor value={document} onChange={setDocument} />;
-}
-```
-
-For server persistence, store the same JSON in a JSON/JSONB column or a document
-blob. In production apps, debounce or batch `onChange` before calling your API.
-
-## Document Model
-
-The core type is `FolioDocument`:
-
-```ts
-import type { FolioDocument } from "@futelab/folio/core";
-
-const document: FolioDocument = {
-  type: "doc",
-  content: [
-    {
-      type: "heading",
-      attrs: { level: 1 },
-      content: [{ type: "text", text: "Product notes" }],
-    },
-    {
-      type: "paragraph",
-      content: [{ type: "text", text: "Write with Folio." }],
-    },
-  ],
-};
-```
-
-Useful helpers:
-
-```ts
-import {
-  createEmptyFolioDocument,
-  isFolioDocument,
-  sampleFolioDocument,
-} from "@futelab/folio/core";
-```
-
-- `createEmptyFolioDocument()` creates an empty document.
-- `isFolioDocument(value)` checks whether a parsed value is a Folio document.
-- `sampleFolioDocument` is a small fixture for tests, stories, or demos.
-
-## Built-in Interactions
-
-`FolioEditor` ships with these interactions:
-
-- Type `/` in an empty or active text block to open slash commands.
-- Use `ArrowUp`, `ArrowDown`, `Home`, `End`, `Enter`, and `Escape` in the slash
-  menu.
-- Hover a block to show side controls. The `+` button opens the block command
-  menu for that row.
-- Select text to show the floating formatting toolbar.
-- Hover or focus a table to show table controls. The right `+` adds a column,
-  and the bottom `+` adds a row.
-
-Default slash commands:
-
-- Text
-- Heading 1, Heading 2, Heading 3
-- Bulleted list, numbered list, todo list
-- Quote
-- Callout
-- Divider
-- Code block
-- Table
-- Image
-- Bookmark
-- Toggle
-- Table of contents
-
-Media commands are intentionally basic in the alpha. For production image and
-bookmark workflows, applications usually provide their own picker, upload, or
-metadata resolution UI.
-
-## Serialization
-
-Import serialization helpers from the explicit subpath:
-
-```ts
-import {
-  fromHTML,
-  fromMarkdown,
-  toHTML,
-  toMarkdown,
-} from "@futelab/folio/serialization";
-```
-
-### HTML
-
-```ts
-const html = toHTML(document);
-const parsedDocument = fromHTML("<h1>Hello</h1><p>World</p>");
-```
-
-HTML serialization uses the default Folio/Tiptap schema.
-
-### Markdown
-
-```ts
-const markdown = toMarkdown(document);
-const parsedDocument = fromMarkdown("# Hello");
-```
-
-Markdown is intentionally lossless. `toMarkdown` supports the subset that can be
-represented without losing data: paragraphs, headings, lists, task lists,
-blockquotes, horizontal rules, code blocks, hard breaks, images without
-captions, and common text marks. It throws `FolioMarkdownSerializationError`
-when a document contains unsupported or lossy nodes such as tables, callouts,
-bookmarks, toggles, or table of contents blocks.
-
-## Styling and Theming
-
-Import the default stylesheet:
-
-```ts
 import "@futelab/folio/styles.css";
-```
+import { createEmptyFolioDocument } from "@futelab/folio/core";
+import { FolioEditor, FolioReader } from "@futelab/folio/react";
 
-The stylesheet defines editor styles, reader styles, menu styles, and CSS custom
-properties. Override variables globally or in a wrapper:
-
-```css
-.my-folio-scope {
-  --folio-color-bg: #ffffff;
-  --folio-color-text: #1f2328;
-  --folio-color-muted: #6b7280;
-  --folio-color-border: #d8dee4;
-  --folio-color-hover: #f6f8fa;
-  --folio-color-selected: #ddf4ff;
-  --folio-color-accent: #0969da;
-  --folio-font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-}
-```
-
-Then scope the editor or reader:
-
-```tsx
-<div className="my-folio-scope">
-  <FolioEditor value={document} onChange={setDocument} />
-</div>
-```
-
-You can also attach custom class names to specific editor surfaces:
-
-```tsx
-<FolioEditor
-  className="article-editor"
-  classNames={{
-    root: "article-editor__root",
-    content: "article-editor__content",
-    blockControls: "article-editor__block-controls",
-    bubbleToolbar: "article-editor__toolbar",
-    slashMenu: "article-editor__commands",
-  }}
-  value={document}
-  onChange={setDocument}
-/>
-```
-
-## API Reference
-
-### Package Entry Points
-
-| Entry point | Purpose |
-| --- | --- |
-| `@futelab/folio` | Combined public exports. Useful for small apps, but subpaths are clearer. |
-| `@futelab/folio/react` | React components and hooks. |
-| `@futelab/folio/core` | Document types, default extensions, default commands, and core helpers. |
-| `@futelab/folio/serialization` | HTML and Markdown import/export helpers. |
-| `@futelab/folio/styles.css` | Default editor and reader styles. |
-
-### `FolioEditor`
-
-```tsx
-import { FolioEditor } from "@futelab/folio/react";
-```
-
-| Prop | Type | Description |
-| --- | --- | --- |
-| `value` | `FolioDocument` | Controlled document value. |
-| `defaultValue` | `FolioDocument` | Initial document for uncontrolled usage. |
-| `onChange` | `(value: FolioDocument) => void` | Called after editor updates. |
-| `editable` | `boolean` | Enables or disables editing. Defaults to `true`. |
-| `extensions` | `FolioExtension[]` | Adds Tiptap extensions to the default editor schema. |
-| `placeholder` | `string` | Placeholder text for empty blocks. |
-| `className` | `string` | Additional class for the editor root. |
-| `classNames` | `FolioEditorClassNames` | Class hooks for root, content, block controls, bubble toolbar, and slash menu. |
-| `initialSlashQuery` | `string` | Opens the slash menu with an initial query. Mostly useful for demos and tests. |
-
-### `FolioReader`
-
-```tsx
-import { FolioReader } from "@futelab/folio/react";
-```
-
-| Prop | Type | Description |
-| --- | --- | --- |
-| `value` | `FolioDocument` | Document to render. |
-| `className` | `string` | Additional class for the reader root. |
-| `classNames.root` | `string` | Additional root class hook. |
-
-### `useFolioEditor`
-
-Use the hook when you need to compose your own editor shell with lower-level
-Tiptap or Folio UI pieces.
-
-```tsx
-import { EditorContent } from "@tiptap/react";
-import { useFolioEditor } from "@futelab/folio/react";
-
-export function CustomEditorShell() {
-  const editor = useFolioEditor({
-    placeholder: "Write...",
-  });
-
-  return <EditorContent editor={editor} />;
-}
-```
-
-The hook accepts the same state-related options as `FolioEditor`: `value`,
-`defaultValue`, `onChange`, `editable`, `extensions`, and `placeholder`.
-
-### Core Helpers
-
-```ts
-import {
-  createDefaultFolioCommands,
-  createDefaultTiptapExtensions,
-  createEmptyFolioDocument,
-  createFolioExtension,
-  createFolioExtensionRegistry,
-  isFolioDocument,
-} from "@futelab/folio/core";
-```
-
-Use these helpers when building custom editor shells, validating loaded JSON,
-or creating extension metadata.
-
-## Extensions
-
-Folio extensions can add Tiptap extensions to the default editor setup:
-
-```tsx
-import { Extension } from "@tiptap/core";
-import { createFolioExtension } from "@futelab/folio/core";
-import type { FolioDocument } from "@futelab/folio/core";
-import { FolioEditor } from "@futelab/folio/react";
-
-const WordCountExtension = Extension.create({
-  name: "wordCount",
-});
-
-const wordCount = createFolioExtension({
-  name: "word-count",
-  tiptapExtensions: [WordCountExtension],
-});
-
-export function EditorWithExtensions({
-  document,
-  setDocument,
-}: {
-  document: FolioDocument;
-  setDocument: (value: FolioDocument) => void;
-}) {
+export function Article() {
+  const [document, setDocument] = useState(createEmptyFolioDocument);
   return (
-    <FolioEditor
-      extensions={[wordCount]}
-      value={document}
-      onChange={setDocument}
-    />
+    <>
+      <FolioEditor documentId="article-42" value={document} onChange={setDocument} />
+      <FolioReader value={document} />
+    </>
   );
 }
 ```
 
-The current alpha focuses on schema and interaction primitives. If you need a
-fully custom slash command menu, compose a custom shell with `useFolioEditor`,
-`SlashMenu`, and your own command list.
+## Package entry points
 
-## Local Development
+| Entry                          | Purpose                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------- |
+| `@futelab/folio/core`          | Documents, validation, snapshots, extensions, commands and URL policy.                      |
+| `@futelab/folio/react`         | Client editor, reader, hooks, menus and controls.                                           |
+| `@futelab/folio/reader`        | Reader and rendering API without the editor client boundary; use in server components.      |
+| `@futelab/folio/serialization` | HTML/Markdown conversions; browser and Node implementations selected by package conditions. |
+| `@futelab/folio/styles.css`    | Complete default styles.                                                                    |
+| `@futelab/folio`               | Combined client entry; prefer the specific subpaths above.                                  |
 
-This repository uses pnpm, Turborepo, and Changesets.
+ESM and CommonJS include matching declaration files. Next.js editors belong in a client component. Server pages can import `FolioReader` from `/reader`; import the CSS in the root layout. Do not call the combined client entry from server-only code.
 
-```bash
-pnpm install
+## Editor contract
+
+- Use `value` + `onChange` for controlled state, or `defaultValue` for initial uncontrolled state.
+- Pass a stable `documentId`; change it when switching documents. A genuine external replacement resets selection and undo history. Normal parent echoes retain the editor and history.
+- `onChange` returns JSON, not an HTML string. Debounce persistence in the host application and handle server conflicts there.
+- `editable={false}` hides write controls and rejects document-changing transactions, including direct editor commands. Invalid input freezes writes and reports through `onError(error)` while retaining the last valid document.
+- `uploadImage(file)` resolves to a hosted URL or `{ src, alt?, caption? }`. The component handles loading, errors, retry and cancellation; authentication/storage/size policy belong to the host. Keep callbacks free of credentials in document JSON.
+- `mentionSuggestions` accepts `{ id, label }[]`. Select a candidate through the toolbar, `@` entry or slash command.
+- `locale="zh-CN"`, `translations` and `labels` customize messages. `placeholder`, `className` and `classNames` customize presentation.
+- `useFolioEditor` exposes the underlying editor for custom shells. Standalone menus and controls are also exported.
+
+Block `+` inserts a paragraph below the current top-level block. Drag or use Alt+Shift+ArrowUp/ArrowDown and the document action buttons to reorder it. Table edge buttons append to the end; focused-table actions manage rows, columns, headers and cell merging.
+
+## Safe persistence and recovery
+
+```ts
+import {
+  createFolioSnapshot,
+  parseFolioSnapshot,
+  validateFolioDocument,
+} from "@futelab/folio/core";
+
+const stored = JSON.stringify(createFolioSnapshot(document));
+// Returns { format: "folio", version: 1, document } and migrates legacy bare JSON.
+const loaded = parseFolioSnapshot(stored).document;
+const result = validateFolioDocument(loaded); // { valid, errors: [{ code, path, message }] }
+```
+
+`parseFolioDocument` and `parseFolioSnapshot` throw `FolioDocumentValidationError` with `issues`. `isFolioDocument` performs validation, rather than checking only the root type. Future snapshot versions and unsupported data are rejected. Catch failures, retain the original saved value, offer a backup/recovery UI and avoid replacing failed loads with an automatically saved empty document. The demo demonstrates this behavior, quota failures and legacy migration.
+
+Default validation limits are 10,000 nodes, depth 64 and two million text/attribute characters. Configure `limits` for your application. `createFolioDocumentValidator(options)` compiles a reusable validator for a stable schema. Snapshot JSON is separate from the package version.
+
+## Reader and extensions
+
+`FolioReader` accepts `value: unknown`, `extensions`, `headingIdPrefix`, `limits`, `maxRenderedNodes`, `onError`, `renderError`, `className` and `classNames.root`. It preserves list start numbers, table spans/widths, code languages and image captions. Invalid, unknown or failing content produces visible diagnostics. Reader `onError` is a synchronous render diagnostic: it must be pure and may run more than once. Use `renderError` to return fallback UI; do not set React state in that callback.
+
+Readers in one React root get unique IDs automatically. For independent roots or `renderFolioNode` calls, pass distinct, stable `headingIdPrefix` values. Rendering defaults to 50,000 generated elements, including table-of-contents expansion.
+
+An extension can contribute `tiptapExtensions`, command metadata and `renderers`. A renderer has `{ type, kind?: "node" | "mark", render(node, { children, path }) }`; register it with the same extensions in the reader. Node/mark schema definitions come from Tiptap. Extension names and contributions must be unique; custom command names override matching defaults. Pass the same extensions to serialization. Conversion rejects nodes without the required format handlers instead of silently discarding them.
+
+## HTML and Markdown
+
+```ts
+import { fromHTML, toHTML, fromMarkdown, toMarkdown } from "@futelab/folio/serialization";
+const document = fromHTML("<h2>Notes</h2><p>Hello</p>");
+const html = toHTML(document);
+const markdown = toMarkdown(document);
+const parsed = fromMarkdown(markdown);
+```
+
+Conversions accept a second `{ extensions, limits }` argument. HTML uses the configured schema, validates URLs and rejects unsupported or active markup. It exports a populated table of contents, visible image captions and bookmark descriptions. Reader, media input and conversions share the URL policy: HTTP/HTTPS and safe relative image URLs, raster base64 images, and HTTP/HTTPS/mailto/tel/safe relative links. SVG data URLs and unsafe protocols are rejected.
+
+Markdown export supports the lossless subset: basic blocks, lists/tasks, code, quotes, dividers, plain images and common marks. Tables, callouts, bookmarks, toggles, captions, colors, underline and unsupported attributes raise `FolioMarkdownSerializationError`. Custom extensions require compatible Markdown handlers and must pass round-trip checks. Raw HTML tokens in Markdown are rejected consistently in Node and browsers; use `fromHTML` for HTML input. Fenced/inline code and Markdown autolinks remain valid.
+
+Tiptap generates matching `id`/`data-toc-id` pairs on headings. To explicitly discard those regenerable anchors when exporting Markdown, use `toMarkdown(document, { headingIds: "omit-matching-toc" })`. The default preserves IDs and reports unrepresentable attributes. Standalone or mismatched author IDs are always preserved/rejected, never silently discarded; the input document is not mutated.
+
+## Styling
+
+Override `--folio-color-bg`, `--folio-color-text`, `--folio-color-border`, `--folio-color-accent`, `--folio-font-family` and related variables globally or on a wrapping element. Editor class hooks are `root`, `content`, `blockControls`, `bubbleToolbar` and `slashMenu`. Menus, dialogs, table controls and reader diagnostics are included in the CSS entry.
+
+## Develop and verify
+
+```sh
+pnpm install --frozen-lockfile
 pnpm demo
-```
-
-The demo runs at:
-
-```text
-http://127.0.0.1:55399/
-```
-
-Common commands:
-
-```bash
-pnpm typecheck
-pnpm test
-pnpm lint
-pnpm build
+pnpm check
+pnpm exec playwright install chromium firefox webkit
 pnpm test:e2e
-pnpm changeset
+pnpm test:package
 ```
 
-To build only the publishable package:
+The demo runs at `http://127.0.0.1:55399/`. `pnpm format`/`format:check` use Oxfmt; `pnpm lint`/`lint:fix` use Oxlint. No ESLint or Prettier process is required.
 
-```bash
-pnpm --filter @futelab/folio build
-```
-
-## Recommended Production Pattern
-
-For most apps:
-
-1. Import `@futelab/folio/styles.css` once.
-2. Keep `FolioDocument` as the canonical saved value.
-3. Use `FolioEditor` in controlled mode for authoring.
-4. Debounce `onChange` before autosaving.
-5. Use `FolioReader` for previews and published pages.
-6. Convert to HTML or Markdown only at import/export boundaries.
+CI checks formatting, lint, types, unit/Node SSR tests, builds, production dependency advisories, Chromium/Firefox/WebKit/mobile flows and isolated React 18/19/Next.js tarball consumers. Consumer checks cover ESM/CJS types and runtime, SSR, production bundles and browser hydration/interactions. [Release and Pages setup](./docs/RELEASING.md) documents the external npm authorization requirements and tag workflow.

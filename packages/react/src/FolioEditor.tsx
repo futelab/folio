@@ -11,26 +11,22 @@ import type { Selection } from "@tiptap/pm/state";
 import { EditorContent } from "@tiptap/react";
 import {
   createDefaultFolioCommands,
+  createFolioExtensionRegistry,
   type FolioCommandContribution,
 } from "@futelab/folio-core/browser";
 import { BlockInteractionLayer } from "./blocks/BlockInteractionLayer";
-import {
-  findBlockElement,
-  focusBlockElement,
-  getBlockAnchor,
-  getCurrentBlockElement,
-} from "./blocks/blockDom";
+import { findBlockElement, getBlockAnchor, getCurrentBlockElement } from "./blocks/blockDom";
 import { FolioEditorContext } from "./context";
 import { BubbleToolbar } from "./menus/BubbleToolbar";
 import { SlashMenu } from "./menus/SlashMenu";
-import {
-  getSlashMenuCommands,
-  getSlashMenuDisplayCommands,
-} from "./menus/slashMenuUtils";
-import { focusTableCell, TableControls } from "./tables/TableControls";
+import { getSlashMenuCommands, getSlashMenuDisplayCommands } from "./menus/slashMenuUtils";
+import { TableControls } from "./tables/TableControls";
 import { resolveFolioMessages } from "./i18n";
 import { useFolioEditor } from "./useFolioEditor";
 import type { UseFolioEditorOptions } from "./useFolioEditor";
+import { resolveEditorLabels, type FolioEditorLabels } from "./editorLabels";
+import { MediaDialog, type FolioImageUpload, type FolioMediaKind } from "./menus/MediaDialog";
+import { MentionPicker, type FolioMentionItem } from "./menus/MentionPicker";
 
 export interface FolioEditorClassNames {
   root?: string;
@@ -44,6 +40,9 @@ export interface FolioEditorProps extends UseFolioEditorOptions {
   className?: string;
   classNames?: FolioEditorClassNames;
   initialSlashQuery?: string;
+  uploadImage?: FolioImageUpload;
+  mentionSuggestions?: FolioMentionItem[];
+  labels?: Partial<FolioEditorLabels>;
 }
 
 function classNames(...values: Array<string | undefined>): string {
@@ -54,25 +53,17 @@ function isSlashMenuEventTarget(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement &&
     Boolean(
-      target.closest(
-        '[role="menu"].folio-editor__slash-menu, [role="menu"].folio-slash-menu',
-      ),
+      target.closest('[role="menu"].folio-editor__slash-menu, [role="menu"].folio-slash-menu'),
     )
   );
 }
 
 function isBlockSideControlsEventTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element &&
-    Boolean(target.closest(".folio-block-side-controls"))
-  );
+  return target instanceof Element && Boolean(target.closest(".folio-block-side-controls"));
 }
 
 function isTableControlsEventTarget(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element &&
-    Boolean(target.closest(".folio-table-controls"))
-  );
+  return target instanceof Element && Boolean(target.closest(".folio-table-controls"));
 }
 
 function isPointInBlockControlsBridge(
@@ -94,10 +85,7 @@ function isPointInBlockControlsBridge(
   const maxY = Math.max(controlsRect.bottom, anchorRect.bottom) + 6;
 
   return (
-    point.clientX >= minX &&
-    point.clientX <= maxX &&
-    point.clientY >= minY &&
-    point.clientY <= maxY
+    point.clientX >= minX && point.clientX <= maxX && point.clientY >= minY && point.clientY <= maxY
   );
 }
 
@@ -113,9 +101,9 @@ function isPointInTableControlsBridge(
   if (!(controls instanceof HTMLElement)) return false;
 
   const tableRect = table.getBoundingClientRect();
-  const buttons = Array.from(
-    controls.querySelectorAll(".folio-table-controls__button"),
-  ).filter((button): button is HTMLElement => button instanceof HTMLElement);
+  const buttons = Array.from(controls.querySelectorAll(".folio-table-controls__button")).filter(
+    (button): button is HTMLElement => button instanceof HTMLElement,
+  );
 
   return buttons.some((button) => {
     const buttonRect = button.getBoundingClientRect();
@@ -189,8 +177,7 @@ function getSlashMenuPosition(
   const rawLeft = coords.left - rootRect.left;
   const belowTop = coords.bottom - rootRect.top + gap;
   const aboveTop = coords.top - rootRect.top - menuMaxHeight - gap;
-  const shouldOpenAbove =
-    coords.bottom + menuMaxHeight + gap > window.innerHeight && aboveTop > 0;
+  const shouldOpenAbove = coords.bottom + menuMaxHeight + gap > window.innerHeight && aboveTop > 0;
 
   return {
     left: Math.min(Math.max(rawLeft, 0), availableWidth),
@@ -271,10 +258,7 @@ function getBubbleToolbarPosition(
   const selectionCenter = selectionRect.left + selectionRect.width / 2;
   const minLeft = toolbarWidth / 2 + edgeGap;
   const maxLeft = Math.max(rootElement.clientWidth - toolbarWidth / 2 - edgeGap, minLeft);
-  const left = Math.min(
-    Math.max(selectionCenter - rootRect.left, minLeft),
-    maxLeft,
-  );
+  const left = Math.min(Math.max(selectionCenter - rootRect.left, minLeft), maxLeft);
   const topAbove = selectionRect.top - rootRect.top - edgeGap;
   const hasRoomAbove = selectionRect.top - toolbarHeight - edgeGap > edgeGap;
 
@@ -312,7 +296,7 @@ function isFormattingTextSelection(selection: Selection): boolean {
 
 function runEditorChain(editor: Editor | null, callback: (chain: any) => any): boolean {
   try {
-    if (!editor) return false;
+    if (!editor?.isEditable) return false;
 
     const chain = callback(editor.chain().focus());
     if (!chain || typeof chain.run !== "function") return false;
@@ -334,17 +318,14 @@ function getDocumentInsertPosition(
   target: BlockPosition,
   placement: "before" | "after",
 ): number | null {
-  const insertPosition =
-    placement === "after" ? target.pos + target.node.nodeSize : target.pos;
+  const insertPosition = placement === "after" ? target.pos + target.node.nodeSize : target.pos;
   const sourceEnd = source.pos + source.node.nodeSize;
 
   if (insertPosition >= source.pos && insertPosition <= sourceEnd) {
     return null;
   }
 
-  return insertPosition > source.pos
-    ? insertPosition - source.node.nodeSize
-    : insertPosition;
+  return insertPosition > source.pos ? insertPosition - source.node.nodeSize : insertPosition;
 }
 
 function getTopLevelBlockPosition(
@@ -357,10 +338,7 @@ function getTopLevelBlockPosition(
 
   let topLevelBlock: HTMLElement = block;
 
-  while (
-    topLevelBlock.parentElement &&
-    topLevelBlock.parentElement !== editor.view.dom
-  ) {
+  while (topLevelBlock.parentElement && topLevelBlock.parentElement !== editor.view.dom) {
     topLevelBlock = topLevelBlock.parentElement;
   }
 
@@ -420,7 +398,7 @@ function moveBlock(
   targetBlock: HTMLElement | null,
   placement: "before" | "after",
 ): boolean {
-  if (!editor || !sourceBlock || !targetBlock || sourceBlock === targetBlock) {
+  if (!editor?.isEditable || !sourceBlock || !targetBlock || sourceBlock === targetBlock) {
     return false;
   }
 
@@ -430,11 +408,7 @@ function moveBlock(
   if (!source || !target || source.pos === target.pos) return false;
 
   const sourceEnd = source.pos + source.node.nodeSize;
-  const adjustedInsertPosition = getDocumentInsertPosition(
-    source,
-    target,
-    placement,
-  );
+  const adjustedInsertPosition = getDocumentInsertPosition(source, target, placement);
 
   if (adjustedInsertPosition === null) return false;
 
@@ -442,14 +416,9 @@ function moveBlock(
     const transaction = editor.state.tr
       .delete(source.pos, sourceEnd)
       .insert(adjustedInsertPosition, source.node);
-    const selectionPosition = Math.min(
-      adjustedInsertPosition + 1,
-      transaction.doc.content.size,
-    );
+    const selectionPosition = Math.min(adjustedInsertPosition + 1, transaction.doc.content.size);
 
-    transaction.setSelection(
-      TextSelection.near(transaction.doc.resolve(selectionPosition)),
-    );
+    transaction.setSelection(TextSelection.near(transaction.doc.resolve(selectionPosition)));
     editor.view.dispatch(transaction.scrollIntoView());
     editor.view.focus();
 
@@ -460,17 +429,47 @@ function moveBlock(
 }
 
 export function FolioEditor(props: FolioEditorProps) {
-  const editor = useFolioEditor(props);
+  const onError = props.onError;
+  const [editorError, setEditorError] = useState<Error>();
+  const reportError = useCallback(
+    (error: Error) => {
+      setEditorError(error);
+      onError?.(error);
+    },
+    [onError],
+  );
+  const editor = useFolioEditor({ ...props, onError: reportError });
+  const writable = props.editable !== false && Boolean(editor?.isEditable);
+  const labels = useMemo(
+    () => resolveEditorLabels(props.locale, props.labels),
+    [props.locale, props.labels],
+  );
   const rootRef = useRef<HTMLDivElement>(null);
   const draggedBlockRef = useRef<HTMLElement | null>(null);
   const messages = useMemo(
-    () => resolveFolioMessages(props),
+    () => resolveFolioMessages({ locale: props.locale, translations: props.translations }),
     [props.locale, props.translations],
   );
-  const slashCommands = useMemo(
-    () => createDefaultFolioCommands({ messages }),
-    [messages],
-  );
+  const slashCommands = useMemo(() => {
+    const commands = new Map(
+      createDefaultFolioCommands({ messages }).map((command) => [command.name, command]),
+    );
+    const customNames = new Set<string>();
+    try {
+      for (const command of createFolioExtensionRegistry(props.extensions).commands) {
+        commands.set(command.name, command);
+        customNames.add(command.name);
+      }
+    } catch {
+      /* useFolioEditor reports invalid extension configuration. */
+    }
+    return Array.from(commands.values()).filter(
+      (command) =>
+        command.name !== "mention" ||
+        customNames.has(command.name) ||
+        Boolean(props.mentionSuggestions?.length),
+    );
+  }, [messages, props.extensions, props.mentionSuggestions]);
   const [slashQuery, setSlashQuery] = useState(props.initialSlashQuery);
   const [slashMenuStyle, setSlashMenuStyle] = useState<CSSProperties>();
   const [activeSlashCommandIndex, setActiveSlashCommandIndex] = useState(0);
@@ -482,13 +481,38 @@ export function FolioEditor(props: FolioEditorProps) {
   const [rootHasFocus, setRootHasFocus] = useState(false);
   const [hasTextSelection, setHasTextSelection] = useState(false);
   const [bubbleToolbarStyle, setBubbleToolbarStyle] = useState<CSSProperties>();
+  const [, setTransactionVersion] = useState(0);
+  const [mediaDialog, setMediaDialog] = useState<{
+    kind: FolioMediaKind;
+    initial: Record<string, string>;
+    selection: Selection;
+    nodePosition?: number;
+    originalAttributes: Record<string, unknown>;
+    editor: Editor;
+  }>();
+  const [mentionRange, setMentionRange] = useState<{ from: number; to: number; query: string }>();
+  const connectedHoveredBlock =
+    hoveredBlock && editor?.view.dom.contains(hoveredBlock) ? hoveredBlock : null;
+  const connectedFocusedBlock =
+    focusedBlock && editor?.view.dom.contains(focusedBlock) ? focusedBlock : null;
   const activeBlock =
-    hoveredBlock ??
-    (editorHasFocus || rootHasFocus || blockMenuOpen ? focusedBlock : null);
-  const activeTable =
-    activeBlock instanceof HTMLElement && activeBlock.matches("table")
-      ? activeBlock
-      : null;
+    connectedHoveredBlock ??
+    (editorHasFocus || rootHasFocus || blockMenuOpen ? connectedFocusedBlock : null);
+  const activeTable = activeBlock?.matches("table") ? activeBlock : null;
+  const tableSelectionActive = Boolean(editor?.isActive("table") && focusedBlock === activeTable);
+  const selectedMedia =
+    editor?.state.selection instanceof NodeSelection &&
+    (editor.state.selection.node.type.name === "image" ||
+      editor.state.selection.node.type.name === "bookmark")
+      ? (editor.state.selection.node.type.name as "image" | "bookmark")
+      : undefined;
+  const editableMedia =
+    selectedMedia ??
+    (activeBlock?.matches(".folio-bookmark")
+      ? "bookmark"
+      : activeBlock?.matches(".folio-image, [data-folio-image]")
+        ? "image"
+        : undefined);
   const activeMenuQuery = hasTextSelection
     ? undefined
     : (slashQuery ?? (blockMenuOpen ? "/" : undefined));
@@ -503,6 +527,107 @@ export function FolioEditor(props: FolioEditorProps) {
   const activeSlashCommandIndexForMenu = Math.min(
     activeSlashCommandIndex,
     Math.max(displayedSlashCommands.length - 1, 0),
+  );
+
+  useEffect(() => {
+    setMediaDialog(undefined);
+    setMentionRange(undefined);
+    draggedBlockRef.current = null;
+  }, [editor, props.documentId]);
+
+  useEffect(() => {
+    if (props.editable === false) {
+      setMediaDialog(undefined);
+      setMentionRange(undefined);
+      setBlockMenuOpen(false);
+      setSlashQuery(undefined);
+    }
+  }, [props.editable]);
+
+  const openMedia = useCallback(
+    (kind: FolioMediaKind, editExisting = false) => {
+      if (!editor?.isEditable || props.editable === false) return;
+      const source = editExisting ? getTopLevelBlockPosition(editor, activeBlock) : null;
+      const selection = editor.state.selection;
+      const selected =
+        editExisting && selection instanceof NodeSelection && selection.node.type.name === kind
+          ? { node: selection.node, pos: selection.from }
+          : null;
+      const existing = selected ?? (source?.node.type.name === kind ? source : null);
+      const attributes =
+        kind === "link" ? editor.getAttributes("link") : (existing?.node.attrs ?? {});
+      const fields =
+        kind === "image"
+          ? ["src", "alt", "caption"]
+          : kind === "bookmark"
+            ? ["url", "title", "description"]
+            : ["href"];
+      const initial = Object.fromEntries(
+        fields
+          .filter((field) => attributes[field] != null)
+          .map((field) => [field, String(attributes[field])]),
+      );
+      setMediaDialog({
+        kind,
+        initial,
+        originalAttributes: attributes,
+        nodePosition: existing?.pos,
+        selection: editor.state.selection,
+        editor,
+      });
+    },
+    [activeBlock, editor, props.editable],
+  );
+
+  const saveMedia = useCallback(
+    (attributes: Record<string, string>) => {
+      if (!writable || !editor || mediaDialog?.editor !== editor) return false;
+      const chain = editor
+        .chain()
+        .focus()
+        .command(({ tr }) => {
+          tr.setSelection(mediaDialog.selection);
+          return true;
+        });
+      if (mediaDialog.kind === "link") {
+        const range = chain.extendMarkRange("link");
+        return attributes.href
+          ? range.setLink({ href: attributes.href }).run()
+          : range.unsetLink().run();
+      }
+      if (mediaDialog.nodePosition !== undefined) {
+        return chain
+          .command(({ tr }) => {
+            tr.setNodeMarkup(mediaDialog.nodePosition!, undefined, {
+              ...mediaDialog.originalAttributes,
+              ...attributes,
+            });
+            return true;
+          })
+          .run();
+      }
+      const content = { type: mediaDialog.kind, attrs: attributes };
+      return chain.insertContent(content).run();
+    },
+    [editor, mediaDialog, writable],
+  );
+
+  const moveActiveBlock = useCallback(
+    (direction: -1 | 1) => {
+      if (!writable || !editor) return;
+      const source = activeBlock ?? getCurrentBlockElement(editor);
+      const position = getTopLevelBlockPosition(editor, source);
+      if (!position) return;
+      const children = Array.from(editor.view.dom.children);
+      const sourceElement =
+        source && children.find((child) => child === source || child.contains(source));
+      const target = sourceElement ? children[children.indexOf(sourceElement) + direction] : null;
+      if (target instanceof HTMLElement) {
+        moveBlock(editor, source, target, direction < 0 ? "before" : "after");
+        setHoveredBlock(null);
+      }
+    },
+    [activeBlock, editor, writable],
   );
 
   const closeSlashMenu = useCallback(() => {
@@ -521,6 +646,7 @@ export function FolioEditor(props: FolioEditorProps) {
     if (!editor) return undefined;
 
     const syncSlashQuery = () => {
+      if (!editor.isEditable || props.editable === false) return;
       const nextQuery = getActiveSlashQuery(editor);
 
       setSlashQuery(nextQuery);
@@ -530,6 +656,27 @@ export function FolioEditor(props: FolioEditorProps) {
         updateHoveredBlock(null);
       }
       setActiveSlashCommandIndex(0);
+      if (
+        !nextQuery &&
+        props.mentionSuggestions?.length &&
+        !mediaDialog &&
+        !mentionRange &&
+        editor.state.selection.empty &&
+        editor.view.composing === false
+      ) {
+        const { $from } = editor.state.selection;
+        if ($from.parent.isTextblock) {
+          const match = /(?:^|\s)@([^\s@]*)$/u.exec(
+            $from.parent.textBetween(0, $from.parentOffset),
+          );
+          if (match)
+            setMentionRange({
+              from: $from.pos - (match[1]?.length ?? 0) - 1,
+              to: $from.pos,
+              query: match[1] ?? "",
+            });
+        }
+      }
     };
 
     const syncFocusedBlock = () => {
@@ -541,6 +688,7 @@ export function FolioEditor(props: FolioEditorProps) {
     };
 
     const syncSelectionState = () => {
+      setTransactionVersion((version) => version + 1);
       const selection = editor.state.selection;
       const nextHasTextSelection = isFormattingTextSelection(selection);
 
@@ -550,9 +698,7 @@ export function FolioEditor(props: FolioEditorProps) {
 
       setHasTextSelection(nextHasTextSelection);
       setBubbleToolbarStyle(
-        nextHasTextSelection
-          ? getBubbleToolbarPosition(editor, rootRef.current)
-          : undefined,
+        nextHasTextSelection ? getBubbleToolbarPosition(editor, rootRef.current) : undefined,
       );
     };
 
@@ -581,7 +727,15 @@ export function FolioEditor(props: FolioEditorProps) {
       editor.off("selectionUpdate", syncSelectionState);
       editor.off("transaction", syncSelectionState);
     };
-  }, [closeSlashMenu, editor, updateHoveredBlock]);
+  }, [
+    closeSlashMenu,
+    editor,
+    updateHoveredBlock,
+    props.editable,
+    props.mentionSuggestions,
+    mediaDialog,
+    mentionRange,
+  ]);
 
   useEffect(() => {
     if (!activeMenuQuery) return undefined;
@@ -618,11 +772,7 @@ export function FolioEditor(props: FolioEditorProps) {
     ownerDocument.addEventListener("pointerdown", closeOnOutsidePointerDown, true);
 
     return () => {
-      ownerDocument.removeEventListener(
-        "pointerdown",
-        closeOnOutsidePointerDown,
-        true,
-      );
+      ownerDocument.removeEventListener("pointerdown", closeOnOutsidePointerDown, true);
     };
   }, [activeMenuQuery, closeSlashMenu]);
 
@@ -644,18 +794,66 @@ export function FolioEditor(props: FolioEditorProps) {
 
   const runSlashCommand = useCallback(
     (command: FolioCommandContribution) => {
+      if (!editor?.isEditable || props.editable === false) return;
       deleteActiveSlashQuery(editor);
-      command.action({ editor });
       closeSlashMenu();
+      const customCommand = props.extensions?.some((extension) =>
+        extension.commands?.some((item) => item.name === command.name),
+      );
+      if (!customCommand && (command.name === "image" || command.name === "bookmark")) {
+        openMedia(command.name);
+        return;
+      }
+      if (!customCommand && command.name === "mention") {
+        setMentionRange({
+          from: editor.state.selection.from,
+          to: editor.state.selection.to,
+          query: "",
+        });
+        return;
+      }
+      try {
+        if (!command.action({ editor })) reportError(new Error(labels.actionFailed));
+      } catch (error) {
+        reportError(error instanceof Error ? error : new Error(String(error)));
+      }
     },
-    [closeSlashMenu, editor],
+    [
+      closeSlashMenu,
+      editor,
+      labels.actionFailed,
+      openMedia,
+      props.editable,
+      props.extensions,
+      reportError,
+    ],
   );
 
   const handleKeyDownCapture = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.nativeEvent.isComposing || event.keyCode === 229 || editor?.view.composing) return;
+      if (!writable || (event.target instanceof Element && event.target.closest('[role="dialog"]')))
+        return;
       if (isSlashMenuEventTarget(event.target)) {
         return;
       }
+
+      if (
+        event.altKey &&
+        event.shiftKey &&
+        (event.key === "ArrowUp" || event.key === "ArrowDown")
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        moveActiveBlock(event.key === "ArrowUp" ? -1 : 1);
+        return;
+      }
+      if (
+        event.target !== event.currentTarget &&
+        event.target instanceof Node &&
+        !editor?.view.dom.contains(event.target)
+      )
+        return;
 
       updateHoveredBlock(null);
 
@@ -687,8 +885,7 @@ export function FolioEditor(props: FolioEditorProps) {
         event.stopPropagation();
         setActiveSlashCommandIndex(
           (currentIndex) =>
-            (currentIndex - 1 + displayedSlashCommands.length) %
-            displayedSlashCommands.length,
+            (currentIndex - 1 + displayedSlashCommands.length) % displayedSlashCommands.length,
         );
         return;
       }
@@ -724,6 +921,9 @@ export function FolioEditor(props: FolioEditorProps) {
       runSlashCommand,
       activeMenuQuery,
       updateHoveredBlock,
+      writable,
+      editor,
+      moveActiveBlock,
     ],
   );
 
@@ -735,27 +935,52 @@ export function FolioEditor(props: FolioEditorProps) {
   );
 
   const handleOpenBlockMenu = useCallback(() => {
-    focusBlockElement(editor, activeBlock);
-    setFocusedBlock(activeBlock);
+    if (!writable || !editor) return;
+    const source = getTopLevelBlockPosition(editor, activeBlock ?? getCurrentBlockElement(editor));
+    const position = source ? source.pos + source.node.nodeSize : editor.state.doc.content.size;
+    if (
+      !editor
+        .chain()
+        .focus()
+        .insertContentAt(position, { type: "paragraph" })
+        .setTextSelection(position + 1)
+        .run()
+    )
+      return;
+    setFocusedBlock(getCurrentBlockElement(editor));
+    updateHoveredBlock(null);
     setBlockMenuOpen(true);
     setSlashQuery(undefined);
     setSlashMenuStyle(getSlashMenuPosition(editor, rootRef.current));
     setActiveSlashCommandIndex(0);
-  }, [activeBlock, editor]);
+  }, [activeBlock, editor, updateHoveredBlock, writable]);
+
+  const focusLastTableCell = useCallback(() => {
+    if (!writable || !editor || !activeTable) return false;
+    const row =
+      activeTable instanceof HTMLTableElement
+        ? activeTable.rows.item(activeTable.rows.length - 1)
+        : null;
+    const lastCell = row?.cells.item(row.cells.length - 1);
+    if (!lastCell) return false;
+    return editor
+      .chain()
+      .focus()
+      .setTextSelection(editor.view.posAtDOM(lastCell, 0) + 1)
+      .run();
+  }, [activeTable, editor, writable]);
 
   const handleAddTableRow = useCallback(() => {
-    focusTableCell(editor, activeTable);
-    runEditorChain(editor, (chain) => chain.addRowAfter());
-  }, [activeTable, editor]);
+    if (focusLastTableCell()) runEditorChain(editor, (chain) => chain.addRowAfter());
+  }, [editor, focusLastTableCell]);
 
   const handleAddTableColumn = useCallback(() => {
-    focusTableCell(editor, activeTable);
-    runEditorChain(editor, (chain) => chain.addColumnAfter());
-  }, [activeTable, editor]);
+    if (focusLastTableCell()) runEditorChain(editor, (chain) => chain.addColumnAfter());
+  }, [editor, focusLastTableCell]);
 
   const handleDragBlockStart = useCallback(
     (event: DragEvent<HTMLButtonElement>) => {
-      if (!editor || !activeBlock) {
+      if (!writable || !editor || !activeBlock) {
         event.preventDefault();
         return;
       }
@@ -764,7 +989,7 @@ export function FolioEditor(props: FolioEditorProps) {
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData("application/x-folio-block", "move");
     },
-    [activeBlock, editor],
+    [activeBlock, editor, writable],
   );
 
   const handleDragBlockEnd = useCallback(() => {
@@ -773,7 +998,7 @@ export function FolioEditor(props: FolioEditorProps) {
 
   const handleDragOver = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
-      if (!draggedBlockRef.current || !editor) return;
+      if (!writable || !draggedBlockRef.current || !editor) return;
 
       const targetBlock = getDropTargetBlock(event, editor);
 
@@ -782,14 +1007,14 @@ export function FolioEditor(props: FolioEditorProps) {
       event.preventDefault();
       event.dataTransfer.dropEffect = "move";
     },
-    [editor],
+    [editor, writable],
   );
 
   const handleDrop = useCallback(
     (event: DragEvent<HTMLDivElement>) => {
       const sourceBlock = draggedBlockRef.current;
 
-      if (!sourceBlock || !editor) return;
+      if (!writable || !sourceBlock || !editor) return;
 
       const targetBlock = getDropTargetBlock(event, editor);
 
@@ -811,7 +1036,7 @@ export function FolioEditor(props: FolioEditorProps) {
         updateHoveredBlock(targetBlock);
       }
     },
-    [editor, updateHoveredBlock],
+    [editor, updateHoveredBlock, writable],
   );
 
   const handleMouseDownCapture = useCallback(
@@ -837,7 +1062,8 @@ export function FolioEditor(props: FolioEditorProps) {
       if (
         isSlashMenuEventTarget(event.target) ||
         isBlockSideControlsEventTarget(event.target) ||
-        isTableControlsEventTarget(event.target)
+        isTableControlsEventTarget(event.target) ||
+        (event.target instanceof Element && Boolean(event.target.closest(".folio-editor-actions")))
       ) {
         return;
       }
@@ -850,11 +1076,7 @@ export function FolioEditor(props: FolioEditorProps) {
       }
 
       if (
-        isPointInBlockControlsBridge(
-          event,
-          hoveredBlockRef.current,
-          rootRef.current,
-        ) ||
+        isPointInBlockControlsBridge(event, hoveredBlockRef.current, rootRef.current) ||
         isPointInTableControlsBridge(event, activeTable, rootRef.current)
       ) {
         return;
@@ -868,11 +1090,7 @@ export function FolioEditor(props: FolioEditorProps) {
   const handleMouseLeave = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
       if (
-        isPointInBlockControlsBridge(
-          event,
-          hoveredBlockRef.current,
-          rootRef.current,
-        ) ||
+        isPointInBlockControlsBridge(event, hoveredBlockRef.current, rootRef.current) ||
         isPointInTableControlsBridge(event, activeTable, rootRef.current)
       ) {
         return;
@@ -890,10 +1108,7 @@ export function FolioEditor(props: FolioEditorProps) {
   const handleBlurCapture = useCallback((event: FocusEvent<HTMLDivElement>) => {
     const nextFocusedElement = event.relatedTarget;
 
-    if (
-      nextFocusedElement instanceof Node &&
-      event.currentTarget.contains(nextFocusedElement)
-    ) {
+    if (nextFocusedElement instanceof Node && event.currentTarget.contains(nextFocusedElement)) {
       return;
     }
 
@@ -914,51 +1129,216 @@ export function FolioEditor(props: FolioEditorProps) {
         onMouseDownCapture={handleMouseDownCapture}
         onMouseLeave={handleMouseLeave}
         onMouseMove={handleMouseMove}
+        onPointerDown={(event) => {
+          if (event.pointerType === "touch" && writable) {
+            const block = findBlockElement(event.target, editor?.view.dom ?? null);
+            if (block) updateHoveredBlock(block);
+          }
+        }}
       >
+        {writable && editor ? (
+          <div
+            aria-label={labels.actions}
+            className="folio-editor-actions"
+            role="toolbar"
+            tabIndex={-1}
+            onMouseDown={(event) => event.preventDefault()}
+          >
+            <button onClick={handleOpenBlockMenu} type="button">
+              {messages.ui.blockControls.insertBlock}
+            </button>
+            <button
+              disabled={!editor.can().undo()}
+              onClick={() => editor.chain().focus().undo().run()}
+              type="button"
+            >
+              {labels.undo}
+            </button>
+            <button
+              disabled={!editor.can().redo()}
+              onClick={() => editor.chain().focus().redo().run()}
+              type="button"
+            >
+              {labels.redo}
+            </button>
+            <button onClick={() => openMedia("image")} type="button">
+              {labels.image}
+            </button>
+            <button onClick={() => openMedia("bookmark")} type="button">
+              {labels.bookmark}
+            </button>
+            <button onClick={() => openMedia("link")} type="button">
+              {labels.link}
+            </button>
+            {props.mentionSuggestions?.length ? (
+              <button
+                onClick={() =>
+                  setMentionRange({
+                    from: editor.state.selection.from,
+                    to: editor.state.selection.to,
+                    query: "",
+                  })
+                }
+                type="button"
+              >
+                {labels.mention}
+              </button>
+            ) : null}
+            {editableMedia ? (
+              <button onClick={() => openMedia(editableMedia, true)} type="button">
+                {labels.editMedia}
+              </button>
+            ) : null}
+            <button
+              aria-keyshortcuts="Alt+Shift+ArrowUp"
+              disabled={!activeBlock}
+              onClick={() => moveActiveBlock(-1)}
+              type="button"
+            >
+              {labels.moveUp}
+            </button>
+            <button
+              aria-keyshortcuts="Alt+Shift+ArrowDown"
+              disabled={!activeBlock}
+              onClick={() => moveActiveBlock(1)}
+              type="button"
+            >
+              {labels.moveDown}
+            </button>
+            {tableSelectionActive ? (
+              <div aria-label={labels.tableActions} className="folio-table-actions" role="group">
+                {(
+                  [
+                    [labels.deleteRow, "deleteRow"],
+                    [labels.deleteColumn, "deleteColumn"],
+                    [labels.headerRow, "toggleHeaderRow"],
+                    [labels.headerColumn, "toggleHeaderColumn"],
+                    [labels.mergeCells, "mergeCells"],
+                    [labels.splitCell, "splitCell"],
+                    [labels.deleteTable, "deleteTable"],
+                  ] as const
+                ).map(([label, command]) => (
+                  <button
+                    disabled={!editor.can()[command]()}
+                    key={command}
+                    onClick={() => {
+                      if (!runEditorChain(editor, (chain) => chain[command]()))
+                        reportError(new Error(labels.actionFailed));
+                    }}
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {editorError ? (
+          <div className="folio-editor-error" role="alert">
+            {editorError.message}
+            <button
+              aria-label={labels.cancel}
+              onClick={() => setEditorError(undefined)}
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+        ) : null}
         <EditorContent
           className={classNames("folio-editor__content", props.classNames?.content)}
           editor={editor}
         />
-        <BlockInteractionLayer
-          activeBlock={activeBlock}
-          editorRoot={rootRef.current}
-          messages={messages}
-          onDragBlockEnd={handleDragBlockEnd}
-          onDragBlockStart={handleDragBlockStart}
-          onOpenBlockMenu={handleOpenBlockMenu}
-          sideControlsClassName={props.classNames?.blockControls}
-        />
-        <TableControls
-          editor={editor}
-          editorRoot={rootRef.current}
-          messages={messages}
-          onAddColumn={handleAddTableColumn}
-          onAddRow={handleAddTableRow}
-          table={activeTable}
-        />
-        {hasTextSelection ? (
+        {writable ? (
+          <BlockInteractionLayer
+            activeBlock={activeBlock}
+            editorRoot={rootRef.current}
+            messages={messages}
+            onDragBlockEnd={handleDragBlockEnd}
+            onDragBlockStart={handleDragBlockStart}
+            onOpenBlockMenu={handleOpenBlockMenu}
+            sideControlsClassName={props.classNames?.blockControls}
+          />
+        ) : null}
+        {writable ? (
+          <TableControls
+            editor={editor}
+            editorRoot={rootRef.current}
+            messages={messages}
+            onAddColumn={handleAddTableColumn}
+            onAddRow={handleAddTableRow}
+            table={activeTable}
+          />
+        ) : null}
+        {writable && hasTextSelection && !mediaDialog && !mentionRange ? (
           <BubbleToolbar
-            className={classNames(
-              "folio-editor__bubble-toolbar",
-              props.classNames?.bubbleToolbar,
-            )}
+            className={classNames("folio-editor__bubble-toolbar", props.classNames?.bubbleToolbar)}
             editor={editor}
             messages={messages}
             style={bubbleToolbarStyle}
+            labels={labels}
+            onEditLink={() => openMedia("link")}
+            onError={reportError}
           />
         ) : null}
-        <SlashMenu
-          className={classNames("folio-editor__slash-menu", props.classNames?.slashMenu)}
-          activeIndex={activeSlashCommandIndexForMenu}
-          commands={filteredSlashCommands}
-          editor={editor}
-          messages={messages}
-          onActiveIndexChange={setActiveSlashCommandIndex}
-          onCommandSelect={handleSlashCommandSelect}
-          onRequestClose={closeSlashMenu}
-          query={activeMenuQuery}
-          style={slashMenuStyle}
-        />
+        {props.editable !== false && !mediaDialog && !mentionRange ? (
+          <SlashMenu
+            className={classNames("folio-editor__slash-menu", props.classNames?.slashMenu)}
+            activeIndex={activeSlashCommandIndexForMenu}
+            commands={filteredSlashCommands}
+            editor={editor}
+            messages={messages}
+            onActiveIndexChange={setActiveSlashCommandIndex}
+            onCommandSelect={handleSlashCommandSelect}
+            onRequestClose={closeSlashMenu}
+            query={activeMenuQuery}
+            style={slashMenuStyle}
+          />
+        ) : null}
+        {writable && mediaDialog ? (
+          <MediaDialog
+            initial={mediaDialog.initial}
+            kind={mediaDialog.kind}
+            labels={labels}
+            onClose={() => {
+              setMediaDialog(undefined);
+              editor?.commands.focus();
+            }}
+            onError={onError}
+            onSave={saveMedia}
+            uploadImage={props.uploadImage}
+          />
+        ) : null}
+        {writable && mentionRange ? (
+          <MentionPicker
+            items={props.mentionSuggestions ?? []}
+            labels={labels}
+            onClose={() => {
+              setMentionRange(undefined);
+              editor?.commands.focus();
+            }}
+            onSelect={(item) => {
+              if (!editor?.isEditable) return;
+              try {
+                const result = editor
+                  .chain()
+                  .focus()
+                  .deleteRange(mentionRange)
+                  .insertContent([
+                    { type: "mention", attrs: { id: item.id, label: item.label } },
+                    { type: "text", text: " " },
+                  ])
+                  .run();
+                if (!result) reportError(new Error(labels.actionFailed));
+                setMentionRange(undefined);
+              } catch (error) {
+                reportError(error instanceof Error ? error : new Error(String(error)));
+              }
+            }}
+            query={mentionRange.query}
+          />
+        ) : null}
       </div>
     </FolioEditorContext.Provider>
   );

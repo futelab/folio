@@ -18,6 +18,7 @@ import { FolioCallout } from "../nodes/callout";
 import { FolioTableOfContentsNode } from "../nodes/toc";
 import { createFolioMessages } from "../i18n";
 import type { FolioI18nOptions, FolioMessages } from "../i18n";
+import { createFolioExtensionRegistry } from "./registry";
 
 const FolioTableOfContentsController = TableOfContents.extend({
   name: "folioTableOfContentsController",
@@ -28,16 +29,16 @@ export interface CreateDefaultTiptapExtensionsOptions extends FolioI18nOptions {
   placeholder?: string;
   includeMarkdown?: boolean;
   messages?: FolioMessages;
+  tableOfContentsLimit?: number;
 }
 
 export function createDefaultTiptapExtensions(
   options: CreateDefaultTiptapExtensionsOptions = {},
 ): Extensions {
-  const messages =
-    options.messages ?? createFolioMessages(options.locale, options.translations);
-  const externalExtensions = options.folioExtensions?.flatMap(
-    (extension) => extension.tiptapExtensions ?? [],
-  );
+  const messages = options.messages ?? createFolioMessages(options.locale, options.translations);
+  const externalExtensions = createFolioExtensionRegistry(
+    options.folioExtensions,
+  ).extensions.flatMap((extension) => extension.tiptapExtensions ?? []);
 
   return [
     StarterKit.configure({
@@ -58,6 +59,7 @@ export function createDefaultTiptapExtensions(
       nested: true,
     }),
     FolioImage.configure({
+      allowBase64: true,
       HTMLAttributes: {
         class: "folio-image",
       },
@@ -70,11 +72,14 @@ export function createDefaultTiptapExtensions(
     Highlight.configure({
       multicolor: true,
     }),
-    Details,
+    Details.configure({ persist: true }),
     DetailsSummary,
     DetailsContent,
     FolioTableOfContentsController,
-    FolioTableOfContentsNode,
+    FolioTableOfContentsNode.configure({
+      messages: messages.ui.tableOfContents,
+      maxEntries: options.tableOfContentsLimit ?? 100,
+    }),
     Mention.configure({
       HTMLAttributes: {
         class: "folio-mention",

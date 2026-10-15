@@ -63,7 +63,7 @@ export function TableControls({
 }: TableControlsProps) {
   const style = getTableControlsStyle(table, editorRoot);
 
-  if (!editor || !style) return null;
+  if (!editor?.isEditable || !style) return null;
 
   const labels = resolveFolioMessages({ messages }).ui.tableControls;
 
@@ -73,6 +73,7 @@ export function TableControls({
         aria-label={labels.addColumnAriaLabel}
         className="folio-table-controls__button folio-table-controls__button--column"
         onClick={onAddColumn}
+        onMouseDown={(event) => event.preventDefault()}
         style={style.column}
         title={labels.addColumnTitle}
         type="button"
@@ -83,6 +84,7 @@ export function TableControls({
         aria-label={labels.addRowAriaLabel}
         className="folio-table-controls__button folio-table-controls__button--row"
         onClick={onAddRow}
+        onMouseDown={(event) => event.preventDefault()}
         style={style.row}
         title={labels.addRowTitle}
         type="button"

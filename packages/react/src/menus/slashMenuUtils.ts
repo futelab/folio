@@ -1,11 +1,6 @@
 import type { FolioCommandContribution } from "@futelab/folio-core/browser";
 
-export const slashMenuGroupOrder = [
-  "Basic",
-  "Lists",
-  "Media",
-  "Advanced",
-] as const;
+export const slashMenuGroupOrder = ["Basic", "Lists", "Media", "Advanced"] as const;
 
 export function normalizeSlashQuery(query: string): string {
   return query.replace(/^\//, "").trim().toLowerCase();
@@ -19,10 +14,7 @@ function getSearchTokens(value: string): string[] {
     .filter(Boolean);
 }
 
-function commandMatchesQuery(
-  command: FolioCommandContribution,
-  query: string,
-): boolean {
+function commandMatchesQuery(command: FolioCommandContribution, query: string): boolean {
   if (!query) return true;
 
   const searchableValues = [
@@ -50,9 +42,7 @@ export function getSlashMenuCommands(
 
   const normalizedQuery = normalizeSlashQuery(query);
 
-  return commands.filter((command) =>
-    commandMatchesQuery(command, normalizedQuery),
-  );
+  return commands.filter((command) => commandMatchesQuery(command, normalizedQuery));
 }
 
 export function groupSlashMenuCommands(

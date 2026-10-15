@@ -63,9 +63,6 @@ describe("Folio i18n", () => {
     const secondMessages = createFolioMessages("en");
 
     expect(secondMessages.ui.slashMenu.label).toBe("Slash commands");
-    expect(secondMessages.commands.paragraph.keywords).toEqual([
-      "paragraph",
-      "plain",
-    ]);
+    expect(secondMessages.commands.paragraph.keywords).toEqual(["paragraph", "plain"]);
   });
 });

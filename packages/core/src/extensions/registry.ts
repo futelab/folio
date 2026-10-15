@@ -66,13 +66,12 @@ export function createFolioExtensionRegistry(
     }
 
     for (const renderer of extension.renderers ?? []) {
-      if (rendererTypes.has(renderer.type)) {
-        throw new Error(
-          `Duplicate Folio renderer contribution: ${renderer.type}`,
-        );
+      const rendererKey = `${renderer.kind ?? "node"}:${renderer.type}`;
+      if (rendererTypes.has(rendererKey)) {
+        throw new Error(`Duplicate Folio renderer contribution: ${renderer.type}`);
       }
 
-      rendererTypes.add(renderer.type);
+      rendererTypes.add(rendererKey);
       renderers.push(renderer);
     }
   }

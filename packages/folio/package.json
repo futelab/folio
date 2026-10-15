@@ -1,79 +1,142 @@
 {
   "name": "@futelab/folio",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0",
+  "description": "Composable React document editor and server-renderable reader built on Tiptap",
+  "homepage": "https://futelab.github.io/folio/",
+  "bugs": {
+    "url": "https://github.com/futelab/folio/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/futelab/folio.git",
+    "directory": "packages/folio"
+  },
+  "files": [
+    "dist",
+    "styles.css",
+    "README.md",
+    "README.ZH-CN.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "type": "module",
+  "sideEffects": [
+    "./styles.css"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist", "styles.css"],
-  "sideEffects": ["./styles.css"],
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./core": {
-      "types": "./dist/core.d.ts",
-      "import": "./dist/core.js",
-      "require": "./dist/core.cjs"
+      "import": {
+        "types": "./dist/core.d.ts",
+        "default": "./dist/core.js"
+      },
+      "require": {
+        "types": "./dist/core.d.cts",
+        "default": "./dist/core.cjs"
+      }
     },
     "./react": {
-      "types": "./dist/react.d.ts",
-      "import": "./dist/react.js",
-      "require": "./dist/react.cjs"
+      "import": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.js"
+      },
+      "require": {
+        "types": "./dist/react.d.cts",
+        "default": "./dist/react.cjs"
+      }
+    },
+    "./reader": {
+      "import": {
+        "types": "./dist/reader.d.ts",
+        "default": "./dist/reader.js"
+      },
+      "require": {
+        "types": "./dist/reader.d.cts",
+        "default": "./dist/reader.cjs"
+      }
     },
     "./serialization": {
-      "types": "./dist/serialization.d.ts",
-      "import": "./dist/serialization.js",
-      "require": "./dist/serialization.cjs"
+      "browser": {
+        "import": {
+          "types": "./dist/serialization.browser.d.ts",
+          "default": "./dist/serialization.browser.js"
+        },
+        "require": {
+          "types": "./dist/serialization.browser.d.cts",
+          "default": "./dist/serialization.browser.cjs"
+        }
+      },
+      "import": {
+        "types": "./dist/serialization.d.ts",
+        "default": "./dist/serialization.js"
+      },
+      "require": {
+        "types": "./dist/serialization.d.cts",
+        "default": "./dist/serialization.cjs"
+      }
     },
-    "./styles.css": "./styles.css"
-  },
-  "scripts": {
-    "build": "tsup --config tsup.config.ts && node scripts/build-styles.mjs",
-    "prepack": "node scripts/pack-manifest.mjs prepare",
-    "postpack": "node scripts/pack-manifest.mjs restore",
-    "test": "vitest run --passWithNoTests --root ../.. packages/folio/src",
-    "typecheck": "tsc --noEmit"
-  },
-  "peerDependencies": {
-    "react": ">=18",
-    "react-dom": ">=18"
-  },
-  "dependencies": {
-    "@tiptap/core": "^3.23.6",
-    "@tiptap/extension-color": "^3.23.6",
-    "@tiptap/extension-collaboration": "^3.23.6",
-    "@tiptap/extension-details": "^3.23.6",
-    "@tiptap/extension-drag-handle": "^3.23.6",
-    "@tiptap/extension-drag-handle-react": "^3.23.6",
-    "@tiptap/extension-highlight": "^3.23.6",
-    "@tiptap/extension-image": "^3.23.6",
-    "@tiptap/extension-mention": "^3.23.6",
-    "@tiptap/extension-node-range": "^3.23.6",
-    "@tiptap/extension-placeholder": "^3.23.6",
-    "@tiptap/extension-table": "^3.23.6",
-    "@tiptap/extension-table-of-contents": "^3.23.6",
-    "@tiptap/extension-task-item": "^3.23.6",
-    "@tiptap/extension-task-list": "^3.23.6",
-    "@tiptap/extension-text-style": "^3.23.6",
-    "@tiptap/html": "^3.23.6",
-    "@tiptap/markdown": "^3.23.6",
-    "@tiptap/pm": "^3.23.6",
-    "@tiptap/react": "^3.23.6",
-    "@tiptap/starter-kit": "^3.23.6",
-    "@tiptap/suggestion": "^3.23.6",
-    "@tiptap/y-tiptap": "^3.0.4",
-    "happy-dom": "^20.9.0",
-    "lucide-react": "^1.17.0",
-    "y-protocols": "^1.0.7",
-    "yjs": "^13.6.31"
-  },
-  "devDependencies": {
-    "tsup": "^8.4.0"
+    "./styles.css": {
+      "types": "./dist/styles.d.ts",
+      "default": "./styles.css"
+    }
   },
   "publishConfig": {
     "access": "public"
+  },
+  "scripts": {
+    "build": "tsup --config tsup.config.ts && node scripts/finalize-package.mjs && node scripts/build-styles.mjs",
+    "prepack": "node scripts/prepare-package.mjs",
+    "test": "vitest run --passWithNoTests --root ../.. packages/folio/src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tiptap/core": "^3.32.0",
+    "@tiptap/extension-collaboration": "^3.32.0",
+    "@tiptap/extension-color": "^3.32.0",
+    "@tiptap/extension-details": "^3.32.0",
+    "@tiptap/extension-drag-handle": "^3.32.0",
+    "@tiptap/extension-drag-handle-react": "^3.32.0",
+    "@tiptap/extension-highlight": "^3.32.0",
+    "@tiptap/extension-image": "^3.32.0",
+    "@tiptap/extension-mention": "^3.32.0",
+    "@tiptap/extension-node-range": "^3.32.0",
+    "@tiptap/extension-placeholder": "^3.32.0",
+    "@tiptap/extension-table": "^3.32.0",
+    "@tiptap/extension-table-of-contents": "^3.32.0",
+    "@tiptap/extension-task-item": "^3.32.0",
+    "@tiptap/extension-task-list": "^3.32.0",
+    "@tiptap/extension-text-style": "^3.32.0",
+    "@tiptap/html": "^3.32.0",
+    "@tiptap/markdown": "^3.32.0",
+    "@tiptap/pm": "^3.32.0",
+    "@tiptap/react": "^3.32.0",
+    "@tiptap/starter-kit": "^3.32.0",
+    "@tiptap/suggestion": "^3.32.0",
+    "@tiptap/y-tiptap": "^3.0.10",
+    "happy-dom": "^20.9.0",
+    "lucide-react": "^1.57.0",
+    "marked": "^17.0.1",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.33"
+  },
+  "devDependencies": {
+    "tsup": "^9.0.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
   }
 }

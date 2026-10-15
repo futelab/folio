@@ -28,16 +28,8 @@ describe("Folio extension registry", () => {
 
     const registry = createFolioExtensionRegistry([callout, embeds]);
 
-    expect(registry.blocks.map((block) => block.name)).toEqual([
-      "callout",
-      "quote",
-      "image",
-    ]);
-    expect(registry.marks.map((mark) => mark.name)).toEqual([
-      "highlight",
-      "comment",
-      "link",
-    ]);
+    expect(registry.blocks.map((block) => block.name)).toEqual(["callout", "quote", "image"]);
+    expect(registry.marks.map((mark) => mark.name)).toEqual(["highlight", "comment", "link"]);
     expect(registry.commands.map((command) => command.name)).toEqual([
       "insertCallout",
       "insertQuote",
@@ -127,9 +119,7 @@ describe("Folio extension registry", () => {
     const registry = createFolioExtensionRegistry(extensions);
     extensions.push(embeds);
 
-    expect(registry.extensions.map((extension) => extension.name)).toEqual([
-      "callout",
-    ]);
+    expect(registry.extensions.map((extension) => extension.name)).toEqual(["callout"]);
   });
 });
 
@@ -158,6 +148,7 @@ describe("default Folio commands", () => {
       "table",
       "image",
       "bookmark",
+      "mention",
       "toggle",
       "toc",
     ]);
@@ -168,9 +159,7 @@ describe("default Folio commands", () => {
 
     expect(paragraph.action({ editor: null })).toBe(false);
     expect(paragraph.action({ editor: {} })).toBe(false);
-    expect(paragraph.action({ editor: { chain: "not a function" } })).toBe(
-      false,
-    );
+    expect(paragraph.action({ editor: { chain: "not a function" } })).toBe(false);
     expect(paragraph.action({ editor: { chain: () => ({}) } })).toBe(false);
     expect(
       paragraph.action({

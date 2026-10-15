@@ -1,18 +1,21 @@
 import { generateHTML, generateJSON } from "@tiptap/html/server";
-import type { FolioDocument } from "../document";
-import { createEmptyFolioDocument, isFolioDocument } from "../document";
-import { createDefaultTiptapExtensions } from "../extensions/defaultExtensions";
+import { Window } from "happy-dom";
+import { createHTMLSerialization } from "./html.shared";
+export type { FolioSerializationOptions } from "./options";
 
-export function toHTML(document: FolioDocument): string {
-  return generateHTML(document, createDefaultTiptapExtensions());
-}
-
-export function fromHTML(html: string): FolioDocument {
-  const document = generateJSON(html, createDefaultTiptapExtensions());
-
-  if (!isFolioDocument(document)) {
-    return createEmptyFolioDocument();
-  }
-
-  return document;
-}
+export const { toHTML, fromHTML } = createHTMLSerialization({
+  generateHTML,
+  generateJSON,
+  createDOM: () => {
+    const window = new Window({
+      settings: {
+        disableJavaScriptEvaluation: true,
+        disableJavaScriptFileLoading: true,
+        disableCSSFileLoading: true,
+        disableIframePageLoading: true,
+        disableComputedStyleRendering: true,
+      },
+    });
+    return { document: window.document as unknown as Document, close: () => window.close() };
+  },
+});

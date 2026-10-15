@@ -57,7 +57,9 @@ test("formatting toolbar follows the selected text instead of the editor bottom"
 
   const editor = page.getByRole("textbox").last();
   await editor.click();
-  await page.keyboard.type("First toolbar target");
+  // This case measures selection/formatting. Send each fixture line as one real
+  // input event so per-character protocol traffic cannot consume its timeout.
+  await page.keyboard.insertText("First toolbar target");
 
   for (const line of [
     "Second paragraph keeps content below the selection.",
@@ -67,7 +69,7 @@ test("formatting toolbar follows the selected text instead of the editor bottom"
     "Sixth paragraph should not influence the selected text toolbar.",
   ]) {
     await page.keyboard.press("Enter");
-    await page.keyboard.type(line);
+    await page.keyboard.insertText(line);
   }
 
   const selectedText = await page.evaluate(() => {
@@ -86,7 +88,7 @@ test("formatting toolbar follows the selected text instead of the editor bottom"
     const rect = range.getBoundingClientRect();
 
     return {
-      endX: rect.right - 2,
+      endX: rect.right + 1,
       height: rect.height,
       startX: rect.left + 2,
       top: rect.top,
@@ -102,21 +104,18 @@ test("formatting toolbar follows the selected text instead of the editor bottom"
   await page.mouse.down();
   await page.mouse.move(selectedText!.endX, selectedText!.y, { steps: 8 });
   await page.mouse.up();
+  await expect
+    .poll(() => page.evaluate(() => window.getSelection()?.toString()))
+    .toBe("First toolbar target");
 
   const toolbar = page.getByRole("toolbar", { name: "Text formatting" });
   await expect(toolbar).toBeVisible();
 
   const toolbarBox = await toolbar.boundingBox();
   expect(toolbarBox).not.toBeNull();
-  expect(toolbarBox!.y + toolbarBox!.height).toBeLessThanOrEqual(
-    selectedText!.top - 4,
-  );
+  expect(toolbarBox!.y + toolbarBox!.height).toBeLessThanOrEqual(selectedText!.top - 4);
   expect(
-    Math.abs(
-      toolbarBox!.x +
-        toolbarBox!.width / 2 -
-        (selectedText!.x + selectedText!.width / 2),
-    ),
+    Math.abs(toolbarBox!.x + toolbarBox!.width / 2 - (selectedText!.x + selectedText!.width / 2)),
   ).toBeLessThan(180);
 
   await toolbar.getByRole("button", { name: "Bold" }).click();
@@ -191,9 +190,7 @@ test("slash commands open from editor input and filter typed query", async ({ pa
   await expect(menu).toHaveCount(0);
 });
 
-test("slash command menu closes when clicking outside the editor", async ({
-  page,
-}) => {
+test("slash command menu closes when clicking outside the editor", async ({ page }) => {
   await page.goto("/");
 
   await page.getByRole("button", { name: "New page" }).click();
@@ -224,7 +221,9 @@ test("slash command selection removes the typed query and applies the block", as
   await expect(editor).toHaveText("");
 });
 
-test("slash commands stay near the cursor and support editor keyboard selection", async ({ page }) => {
+test("slash commands stay near the cursor and support editor keyboard selection", async ({
+  page,
+}) => {
   await page.goto("/");
 
   await page.getByRole("button", { name: "New page" }).click();
@@ -250,19 +249,19 @@ test("slash commands stay near the cursor and support editor keyboard selection"
   expect(menuBox).not.toBeNull();
   expect(menuBox!.y).toBeGreaterThan(editorBox!.y + 120);
   await expect(menu.getByRole("menuitem", { name: "Heading 1" })).toHaveAttribute(
-    "aria-selected",
+    "aria-current",
     "true",
   );
 
   await page.keyboard.press("ArrowDown");
   await expect(menu.getByRole("menuitem", { name: "Heading 2" })).toHaveAttribute(
-    "aria-selected",
+    "aria-current",
     "true",
   );
 
   await page.keyboard.press("ArrowUp");
   await expect(menu.getByRole("menuitem", { name: "Heading 1" })).toHaveAttribute(
-    "aria-selected",
+    "aria-current",
     "true",
   );
 
@@ -274,9 +273,7 @@ test("slash commands stay near the cursor and support editor keyboard selection"
   await expect(editor).not.toContainText("/he");
 });
 
-test("slash command keyboard navigation scrolls the active item into view", async ({
-  page,
-}) => {
+test("slash command keyboard navigation scrolls the active item into view", async ({ page }) => {
   await page.goto("/");
 
   await page.getByRole("button", { name: "New page" }).click();
@@ -339,7 +336,7 @@ test("slash menu keeps roving focus keyboard navigation when menu items are focu
   await page.keyboard.press("ArrowDown");
 
   await expect(heading2).toBeFocused();
-  await expect(heading2).toHaveAttribute("aria-selected", "true");
+  await expect(heading2).toHaveAttribute("aria-current", "true");
 
   await page.keyboard.press("Escape");
 
@@ -372,9 +369,7 @@ test("block side controls appear on block focus or hover and open the command me
   await expect(page.getByRole("menuitem", { name: /Text/ })).toBeVisible();
 });
 
-test("block command menu closes when clicking another editor line", async ({
-  page,
-}) => {
+test("block command menu closes when clicking another editor line", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "New page" }).click();
 
@@ -393,9 +388,7 @@ test("block command menu closes when clicking another editor line", async ({
   await expect(page.getByRole("menu", { name: "Slash commands" })).toHaveCount(0);
 });
 
-test("block side controls remain reachable from editor keyboard focus", async ({
-  page,
-}) => {
+test("block side controls remain reachable from editor keyboard focus", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "New page" }).click();
 
@@ -414,9 +407,7 @@ test("block side controls remain reachable from editor keyboard focus", async ({
   await expect(page.getByRole("menu", { name: "Slash commands" })).toBeVisible();
 });
 
-test("block side controls stay visible when hovering their icons", async ({
-  page,
-}) => {
+test("block side controls stay visible when hovering their icons", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "New page" }).click();
 
@@ -437,9 +428,7 @@ test("block side controls stay visible when hovering their icons", async ({
   await expect(page.getByRole("button", { name: "Drag block" })).toBeVisible();
 });
 
-test("block side controls keep a clear gap before the first line content", async ({
-  page,
-}) => {
+test("block side controls keep a clear gap before the first line content", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "New page" }).click();
 
@@ -451,8 +440,8 @@ test("block side controls keep a clear gap before the first line content", async
 
   const contentGap = await page.evaluate(() => {
     const controls = document.querySelector(".folio-block-side-controls");
-    const block = Array.from(document.querySelectorAll(".ProseMirror p")).find(
-      (element) => element.textContent?.includes("Spacing block"),
+    const block = Array.from(document.querySelectorAll(".ProseMirror p")).find((element) =>
+      element.textContent?.includes("Spacing block"),
     );
 
     if (!(controls instanceof HTMLElement) || !(block instanceof HTMLElement)) {
@@ -475,9 +464,7 @@ test("block side controls keep a clear gap before the first line content", async
   expect(contentGap).toBeLessThanOrEqual(16);
 });
 
-test("block side controls stay visible while crossing the content gap", async ({
-  page,
-}) => {
+test("block side controls stay visible while crossing the content gap", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "New page" }).click();
 
@@ -490,8 +477,8 @@ test("block side controls stay visible while crossing the content gap", async ({
 
   const hoverBridge = await page.evaluate(() => {
     const controls = document.querySelector(".folio-block-side-controls");
-    const block = Array.from(document.querySelectorAll(".ProseMirror p")).find(
-      (element) => element.textContent?.includes("Bridge hover block"),
+    const block = Array.from(document.querySelectorAll(".ProseMirror p")).find((element) =>
+      element.textContent?.includes("Bridge hover block"),
     );
 
     if (!(controls instanceof HTMLElement) || !(block instanceof HTMLElement)) {
@@ -518,7 +505,7 @@ test("block side controls stay visible while crossing the content gap", async ({
   await expect(page.getByRole("button", { name: "Drag block" })).toBeVisible();
 });
 
-test("block side controls target the hovered block when opening commands", async ({
+test("block side controls insert below the hovered block without converting it", async ({
   page,
 }) => {
   await page.goto("/");
@@ -535,8 +522,11 @@ test("block side controls target the hovered block when opening commands", async
   await page.getByRole("button", { name: "Add block below" }).click();
   await page.getByRole("menuitem", { name: "Heading 1" }).click();
 
-  await expect(editor.locator("h1")).toHaveText("Second block");
+  await expect(editor.locator("h1")).toHaveText("");
   await expect(editor.locator("p", { hasText: "First block" })).toBeVisible();
+  await expect(editor.locator("p", { hasText: "Second block" })).toBeVisible();
+  await page.keyboard.type("Third block");
+  await expect(editor.locator("h1")).toHaveText("Third block");
 });
 
 test("drag handle reorders top-level blocks", async ({ page }) => {
@@ -574,9 +564,9 @@ test("drag handle reorders top-level blocks", async ({ page }) => {
     dataTransfer,
   });
 
-  const blockTexts = await editor.locator("p").evaluateAll((blocks) =>
-    blocks.map((block) => block.textContent?.trim()).filter(Boolean),
-  );
+  const blockTexts = await editor
+    .locator("p")
+    .evaluateAll((blocks) => blocks.map((block) => block.textContent?.trim()).filter(Boolean));
 
   expect(blockTexts.slice(0, 3)).toEqual([
     "Second drag block",
@@ -585,9 +575,7 @@ test("drag handle reorders top-level blocks", async ({ page }) => {
   ]);
 });
 
-test("block side controls are vertically centered on the first line", async ({
-  page,
-}) => {
+test("block side controls are vertically centered on the first line", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "New page" }).click();
 
@@ -639,9 +627,7 @@ test("toggle command renders without native button chrome", async ({ page }) => 
   await page.getByRole("menuitem", { name: "Toggle" }).click();
 
   const toggleStyles = await page.evaluate(() => {
-    const button = document.querySelector(
-      '.ProseMirror [data-type="details"] > button',
-    );
+    const button = document.querySelector('.ProseMirror [data-type="details"] > button');
 
     if (!(button instanceof HTMLElement)) return null;
 
@@ -665,9 +651,7 @@ test("toggle command renders without native button chrome", async ({ page }) => 
   });
 });
 
-test("toggle disclosure button is centered on the summary first line", async ({
-  page,
-}) => {
+test("toggle disclosure button is centered on the summary first line", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "New page" }).click();
 
@@ -683,12 +667,8 @@ test("toggle disclosure button is centered on the summary first line", async ({
   await expect(summary).toContainText(/\S/);
 
   const centerDelta = await page.evaluate(() => {
-    const button = document.querySelector(
-      '.ProseMirror [data-type="details"] > button',
-    );
-    const summary = document.querySelector(
-      '.ProseMirror [data-type="details"] summary',
-    );
+    const button = document.querySelector('.ProseMirror [data-type="details"] > button');
+    const summary = document.querySelector('.ProseMirror [data-type="details"] summary');
 
     if (!(button instanceof HTMLElement) || !(summary instanceof HTMLElement)) {
       return Number.POSITIVE_INFINITY;
@@ -785,10 +765,7 @@ test("table controls stay visible when hovering add buttons", async ({ page }) =
   expect(columnBox).not.toBeNull();
   expect(rowBox).not.toBeNull();
 
-  await page.mouse.move(
-    tableBox!.x + tableBox!.width - 2,
-    columnBox!.y + columnBox!.height / 2,
-  );
+  await page.mouse.move(tableBox!.x + tableBox!.width - 2, columnBox!.y + columnBox!.height / 2);
   await page.mouse.move(
     (tableBox!.x + tableBox!.width + columnBox!.x) / 2,
     columnBox!.y + columnBox!.height / 2,
@@ -796,14 +773,8 @@ test("table controls stay visible when hovering add buttons", async ({ page }) =
   await expect(columnButton).toBeVisible();
   await expect(rowButton).toBeVisible();
 
-  await page.mouse.move(
-    columnBox!.x + columnBox!.width / 2,
-    columnBox!.y + columnBox!.height / 2,
-  );
-  await page.mouse.move(
-    rowBox!.x + rowBox!.width / 2,
-    tableBox!.y + tableBox!.height - 2,
-  );
+  await page.mouse.move(columnBox!.x + columnBox!.width / 2, columnBox!.y + columnBox!.height / 2);
+  await page.mouse.move(rowBox!.x + rowBox!.width / 2, tableBox!.y + tableBox!.height - 2);
   await page.mouse.move(
     rowBox!.x + rowBox!.width / 2,
     (tableBox!.y + tableBox!.height + rowBox!.y) / 2,

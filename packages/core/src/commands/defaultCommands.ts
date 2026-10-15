@@ -1,11 +1,9 @@
 import type { FolioCommandContribution } from "../extensions/types";
 import { createFolioMessages } from "../i18n";
 import type { FolioI18nOptions, FolioMessages } from "../i18n";
+import { sanitizeFolioUrl } from "../security";
 
-function runEditorChain(
-  editor: unknown,
-  callback: (chain: any) => any,
-): boolean {
+function runEditorChain(editor: unknown, callback: (chain: any) => any): boolean {
   try {
     const candidate = editor as { chain?: unknown } | null;
     if (!candidate || typeof candidate.chain !== "function") return false;
@@ -81,6 +79,7 @@ const commandMetadata = {
     group: "Media",
     icon: "Bookmark",
   },
+  mention: { group: "Advanced", icon: "Text" },
   toggle: {
     group: "Advanced",
     icon: "PanelTop",
@@ -104,8 +103,7 @@ export interface CreateDefaultFolioCommandsOptions extends FolioI18nOptions {
 export function createDefaultFolioCommands(
   options: CreateDefaultFolioCommandsOptions = {},
 ): FolioCommandContribution[] {
-  const messages =
-    options.messages ?? createFolioMessages(options.locale, options.translations);
+  const messages = options.messages ?? createFolioMessages(options.locale, options.translations);
   const commandMessages = messages.commands;
 
   return [
@@ -115,8 +113,7 @@ export function createDefaultFolioCommands(
       ...commandMetadata.paragraph,
       description: commandMessages.paragraph.description,
       keywords: [...commandMessages.paragraph.keywords],
-      action: ({ editor }) =>
-        runEditorChain(editor, (chain) => chain.setParagraph()),
+      action: ({ editor }) => runEditorChain(editor, (chain) => chain.setParagraph()),
     },
     {
       name: "heading1",
@@ -124,8 +121,7 @@ export function createDefaultFolioCommands(
       ...commandMetadata.heading1,
       description: commandMessages.heading1.description,
       keywords: [...commandMessages.heading1.keywords],
-      action: ({ editor }) =>
-        runEditorChain(editor, (chain) => chain.toggleHeading({ level: 1 })),
+      action: ({ editor }) => runEditorChain(editor, (chain) => chain.toggleHeading({ level: 1 })),
     },
     {
       name: "heading2",
@@ -133,8 +129,7 @@ export function createDefaultFolioCommands(
       ...commandMetadata.heading2,
       description: commandMessages.heading2.description,
       keywords: [...commandMessages.heading2.keywords],
-      action: ({ editor }) =>
-        runEditorChain(editor, (chain) => chain.toggleHeading({ level: 2 })),
+      action: ({ editor }) => runEditorChain(editor, (chain) => chain.toggleHeading({ level: 2 })),
     },
     {
       name: "heading3",
@@ -142,8 +137,7 @@ export function createDefaultFolioCommands(
       ...commandMetadata.heading3,
       description: commandMessages.heading3.description,
       keywords: [...commandMessages.heading3.keywords],
-      action: ({ editor }) =>
-        runEditorChain(editor, (chain) => chain.toggleHeading({ level: 3 })),
+      action: ({ editor }) => runEditorChain(editor, (chain) => chain.toggleHeading({ level: 3 })),
     },
     {
       name: "bulletList",
@@ -151,8 +145,7 @@ export function createDefaultFolioCommands(
       ...commandMetadata.bulletList,
       description: commandMessages.bulletList.description,
       keywords: [...commandMessages.bulletList.keywords],
-      action: ({ editor }) =>
-        runEditorChain(editor, (chain) => chain.toggleBulletList()),
+      action: ({ editor }) => runEditorChain(editor, (chain) => chain.toggleBulletList()),
     },
     {
       name: "orderedList",
@@ -160,8 +153,7 @@ export function createDefaultFolioCommands(
       ...commandMetadata.orderedList,
       description: commandMessages.orderedList.description,
       keywords: [...commandMessages.orderedList.keywords],
-      action: ({ editor }) =>
-        runEditorChain(editor, (chain) => chain.toggleOrderedList()),
+      action: ({ editor }) => runEditorChain(editor, (chain) => chain.toggleOrderedList()),
     },
     {
       name: "todoList",
@@ -169,8 +161,7 @@ export function createDefaultFolioCommands(
       ...commandMetadata.todoList,
       description: commandMessages.taskList.description,
       keywords: [...commandMessages.taskList.keywords],
-      action: ({ editor }) =>
-        runEditorChain(editor, (chain) => chain.toggleTaskList()),
+      action: ({ editor }) => runEditorChain(editor, (chain) => chain.toggleTaskList()),
     },
     {
       name: "quote",
@@ -178,8 +169,7 @@ export function createDefaultFolioCommands(
       ...commandMetadata.quote,
       description: commandMessages.quote.description,
       keywords: [...commandMessages.quote.keywords],
-      action: ({ editor }) =>
-        runEditorChain(editor, (chain) => chain.toggleBlockquote()),
+      action: ({ editor }) => runEditorChain(editor, (chain) => chain.toggleBlockquote()),
     },
     {
       name: "callout",
@@ -198,9 +188,7 @@ export function createDefaultFolioCommands(
                 content: [
                   {
                     type: "text",
-                    text:
-                      commandMessages.callout.defaultText ??
-                      commandMessages.callout.label,
+                    text: commandMessages.callout.defaultText ?? commandMessages.callout.label,
                   },
                 ],
               },
@@ -214,8 +202,7 @@ export function createDefaultFolioCommands(
       ...commandMetadata.divider,
       description: commandMessages.divider.description,
       keywords: [...commandMessages.divider.keywords],
-      action: ({ editor }) =>
-        runEditorChain(editor, (chain) => chain.setHorizontalRule()),
+      action: ({ editor }) => runEditorChain(editor, (chain) => chain.setHorizontalRule()),
     },
     {
       name: "codeBlock",
@@ -223,8 +210,7 @@ export function createDefaultFolioCommands(
       ...commandMetadata.codeBlock,
       description: commandMessages.codeBlock.description,
       keywords: [...commandMessages.codeBlock.keywords],
-      action: ({ editor }) =>
-        runEditorChain(editor, (chain) => chain.toggleCodeBlock()),
+      action: ({ editor }) => runEditorChain(editor, (chain) => chain.toggleCodeBlock()),
     },
     {
       name: "table",
@@ -243,10 +229,18 @@ export function createDefaultFolioCommands(
       ...commandMetadata.image,
       description: commandMessages.image.description,
       keywords: [...commandMessages.image.keywords],
-      action: ({ editor, attrs }) =>
-        runEditorChain(editor, (chain) =>
-          chain.setImage({ src: String(attrs?.src ?? "") }),
-        ),
+      action: ({ editor, attrs }) => {
+        const src = sanitizeFolioUrl(attrs?.src, { kind: "image" });
+        if (!src) return false;
+        return runEditorChain(editor, (chain) =>
+          chain.setImage({
+            src,
+            ...(attrs?.alt !== undefined ? { alt: String(attrs.alt) } : {}),
+            ...(attrs?.title !== undefined ? { title: String(attrs.title) } : {}),
+            ...(attrs?.caption !== undefined ? { caption: String(attrs.caption) } : {}),
+          }),
+        );
+      },
     },
     {
       name: "bookmark",
@@ -254,17 +248,37 @@ export function createDefaultFolioCommands(
       ...commandMetadata.bookmark,
       description: commandMessages.bookmark.description,
       keywords: [...commandMessages.bookmark.keywords],
-      action: ({ editor, attrs }) =>
-        runEditorChain(editor, (chain) =>
+      action: ({ editor, attrs }) => {
+        const url = sanitizeFolioUrl(String(attrs?.url ?? ""), { kind: "link" });
+        if (!url) return false;
+        return runEditorChain(editor, (chain) =>
           chain.insertContent({
             type: "bookmark",
             attrs: {
-              url: String(attrs?.url ?? ""),
+              url,
               title: String(attrs?.title ?? attrs?.url ?? ""),
               description: String(attrs?.description ?? ""),
             },
           }),
-        ),
+        );
+      },
+    },
+    {
+      name: "mention",
+      label: commandMessages.mention.label,
+      ...commandMetadata.mention,
+      description: commandMessages.mention.description,
+      keywords: [...commandMessages.mention.keywords],
+      action: ({ editor, attrs }) => {
+        const id = String(attrs?.id ?? attrs?.label ?? "").trim();
+        if (!id) return false;
+        return runEditorChain(editor, (chain) =>
+          chain.insertContent({
+            type: "mention",
+            attrs: { id, label: String(attrs?.label ?? id) },
+          }),
+        );
+      },
     },
     {
       name: "toggle",
@@ -272,8 +286,7 @@ export function createDefaultFolioCommands(
       ...commandMetadata.toggle,
       description: commandMessages.toggle.description,
       keywords: [...commandMessages.toggle.keywords],
-      action: ({ editor }) =>
-        runEditorChain(editor, (chain) => chain.setDetails()),
+      action: ({ editor }) => runEditorChain(editor, (chain) => chain.setDetails()),
     },
     {
       name: "toc",
@@ -282,9 +295,7 @@ export function createDefaultFolioCommands(
       description: commandMessages.toc.description,
       keywords: [...commandMessages.toc.keywords],
       action: ({ editor }) =>
-        runEditorChain(editor, (chain) =>
-          chain.insertContent({ type: "tableOfContents" }),
-        ),
+        runEditorChain(editor, (chain) => chain.insertContent({ type: "tableOfContents" })),
     },
   ];
 }

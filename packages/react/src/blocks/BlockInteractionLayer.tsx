@@ -31,10 +31,7 @@ function getSideControlsStyle(
   const rootRect = editorRoot.getBoundingClientRect();
 
   return {
-    top:
-      anchor.rect.top -
-      rootRect.top +
-      (anchor.rect.height - SIDE_CONTROLS_HEIGHT) / 2,
+    top: anchor.rect.top - rootRect.top + (anchor.rect.height - SIDE_CONTROLS_HEIGHT) / 2,
   };
 }
 

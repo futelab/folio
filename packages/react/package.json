@@ -1,6 +1,6 @@
 {
   "name": "@futelab/folio-react",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "./dist/index.cjs",
@@ -20,25 +20,25 @@
   },
   "dependencies": {
     "@futelab/folio-core": "workspace:*",
-    "@tiptap/core": "^3.23.6",
-    "@tiptap/extension-collaboration": "^3.23.6",
-    "@tiptap/extension-drag-handle": "^3.23.6",
-    "@tiptap/extension-drag-handle-react": "^3.23.6",
-    "@tiptap/extension-node-range": "^3.23.6",
-    "@tiptap/pm": "^3.23.6",
-    "@tiptap/react": "^3.23.6",
-    "@tiptap/y-tiptap": "^3.0.4",
-    "lucide-react": "^1.17.0",
+    "@tiptap/core": "^3.32.0",
+    "@tiptap/extension-collaboration": "^3.32.0",
+    "@tiptap/extension-drag-handle": "^3.32.0",
+    "@tiptap/extension-drag-handle-react": "^3.32.0",
+    "@tiptap/extension-node-range": "^3.32.0",
+    "@tiptap/pm": "^3.32.0",
+    "@tiptap/react": "^3.32.0",
+    "@tiptap/y-tiptap": "^3.0.10",
+    "lucide-react": "^1.57.0",
     "y-protocols": "^1.0.7",
-    "yjs": "^13.6.31"
-  },
-  "peerDependencies": {
-    "react": ">=18",
-    "react-dom": ">=18"
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "tsup": "^8.4.0"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tsup": "^9.0.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
   }
 }

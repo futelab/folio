@@ -18,10 +18,7 @@ describe("Folio serialization", () => {
   it("parses HTML into Folio JSON", () => {
     expect(fromHTML("<h1>Hello</h1><p>World</p>")).toMatchObject({
       type: "doc",
-      content: [
-        { type: "heading", attrs: { level: 1 } },
-        { type: "paragraph" },
-      ],
+      content: [{ type: "heading", attrs: { level: 1 } }, { type: "paragraph" }],
     });
   });
 
@@ -129,7 +126,7 @@ describe("Folio serialization", () => {
     ],
     [
       "link target attribute",
-      [{ type: "link", attrs: { href: "https://example.com", target: "_blank" } }],
+      [{ type: "link", attrs: { href: "https://example.com", target: "_self" } }],
       /FolioMarkdownSerializationError: Markdown serialization does not support lossy attribute "target" on "link"/,
     ],
     [

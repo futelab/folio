@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import { useState, type ComponentType } from "react";
 import type { CSSProperties } from "react";
 import type { Editor } from "@tiptap/core";
 import {
@@ -12,12 +12,17 @@ import {
 } from "lucide-react";
 import type { FolioMessages } from "../i18n";
 import { resolveFolioMessages } from "../i18n";
+import { resolveEditorLabels, type FolioEditorLabels } from "../editorLabels";
+import { MediaDialog } from "./MediaDialog";
 
 export interface BubbleToolbarProps {
   editor: Editor | null;
   className?: string;
   messages?: FolioMessages;
   style?: CSSProperties;
+  labels?: FolioEditorLabels;
+  onEditLink?: () => void;
+  onError?: (error: Error) => void;
 }
 
 interface ToolbarAction {
@@ -29,7 +34,7 @@ interface ToolbarAction {
 
 function runEditorChain(editor: Editor | null, callback: (chain: any) => any): boolean {
   try {
-    if (!editor) return false;
+    if (!editor?.isEditable) return false;
 
     const chain = callback(editor.chain().focus());
     if (!chain || typeof chain.run !== "function") return false;
@@ -49,21 +54,7 @@ function isMarkActive(editor: Editor | null, markName: string): boolean {
   }
 }
 
-function promptForLinkHref(editor: Editor, label: string): string | null {
-  if (typeof window === "undefined" || typeof window.prompt !== "function") {
-    return null;
-  }
-
-  const currentHref = editor.getAttributes("link").href;
-  const href = window.prompt(
-    label,
-    typeof currentHref === "string" ? currentHref : "",
-  );
-
-  return href;
-}
-
-function createToolbarActions(messages: FolioMessages): ToolbarAction[] {
+function createToolbarActions(messages: FolioMessages, editLink: () => void): ToolbarAction[] {
   const labels = messages.ui.bubbleToolbar;
 
   return [
@@ -83,8 +74,7 @@ function createToolbarActions(messages: FolioMessages): ToolbarAction[] {
       label: labels.underline,
       icon: Underline,
       isActive: (editor) => isMarkActive(editor, "underline"),
-      run: (editor) =>
-        runEditorChain(editor, (chain) => chain.toggleUnderline()),
+      run: (editor) => runEditorChain(editor, (chain) => chain.toggleUnderline()),
     },
     {
       label: labels.strike,
@@ -102,30 +92,16 @@ function createToolbarActions(messages: FolioMessages): ToolbarAction[] {
       label: labels.link,
       icon: LinkIcon,
       isActive: (editor) => isMarkActive(editor, "link"),
-      run: (editor) => {
-        const href = promptForLinkHref(editor, labels.linkUrlPrompt);
-
-        if (href === null) {
-          return false;
-        }
-
-        if (href === "") {
-          return runEditorChain(editor, (chain) =>
-            chain.extendMarkRange("link").unsetLink(),
-          );
-        }
-
-        return runEditorChain(editor, (chain) =>
-          chain.extendMarkRange("link").setLink({ href }),
-        );
+      run: () => {
+        editLink();
+        return true;
       },
     },
     {
       label: labels.highlight,
       icon: Highlighter,
       isActive: (editor) => isMarkActive(editor, "highlight"),
-      run: (editor) =>
-        runEditorChain(editor, (chain) => chain.toggleHighlight()),
+      run: (editor) => runEditorChain(editor, (chain) => chain.toggleHighlight()),
     },
   ];
 }
@@ -135,39 +111,76 @@ export function BubbleToolbar({
   className,
   messages,
   style,
+  labels = resolveEditorLabels(),
+  onEditLink,
+  onError,
 }: BubbleToolbarProps) {
+  const [linkSelection, setLinkSelection] = useState<{ from: number; to: number; href: string }>();
   const resolvedMessages = resolveFolioMessages({ messages });
-  const toolbarActions = createToolbarActions(resolvedMessages);
+  const toolbarActions = createToolbarActions(resolvedMessages, () => {
+    if (!editor?.isEditable) return;
+    if (onEditLink) {
+      onEditLink();
+      return;
+    }
+    setLinkSelection({
+      from: editor.state.selection.from,
+      to: editor.state.selection.to,
+      href: String(editor.getAttributes("link").href ?? ""),
+    });
+  });
+
+  if (!editor?.isEditable) return null;
 
   return (
-    <div
-      aria-label={resolvedMessages.ui.bubbleToolbar.label}
-      className={className ?? "folio-bubble-toolbar"}
-      role="toolbar"
-      style={style}
-    >
-      {toolbarActions.map((action) => {
-        const Icon = action.icon;
+    <>
+      <div
+        aria-label={resolvedMessages.ui.bubbleToolbar.label}
+        className={className ?? "folio-bubble-toolbar"}
+        role="toolbar"
+        style={style}
+      >
+        {toolbarActions.map((action) => {
+          const Icon = action.icon;
 
-        return (
-          <button
-            aria-label={action.label}
-            aria-pressed={editor ? action.isActive(editor) : false}
-            className="folio-bubble-toolbar__button"
-            disabled={!editor}
-            key={action.label}
-            onClick={() => {
-              if (editor) {
-                action.run(editor);
-              }
-            }}
-            title={action.label}
-            type="button"
-          >
-            <Icon aria-hidden size={16} />
-          </button>
-        );
-      })}
-    </div>
+          return (
+            <button
+              aria-label={action.label}
+              aria-pressed={editor ? action.isActive(editor) : false}
+              className="folio-bubble-toolbar__button"
+              disabled={!editor.isEditable}
+              key={action.label}
+              onClick={() => {
+                if (editor.isEditable) {
+                  if (!action.run(editor)) onError?.(new Error(labels.actionFailed));
+                }
+              }}
+              onMouseDown={(event) => event.preventDefault()}
+              title={action.label}
+              type="button"
+            >
+              <Icon aria-hidden size={16} />
+            </button>
+          );
+        })}
+      </div>
+      {linkSelection ? (
+        <MediaDialog
+          initial={{ href: linkSelection.href }}
+          kind="link"
+          labels={labels}
+          onClose={() => setLinkSelection(undefined)}
+          onError={onError}
+          onSave={({ href }) =>
+            runEditorChain(editor, (chain) => {
+              const selected = chain
+                .setTextSelection({ from: linkSelection.from, to: linkSelection.to })
+                .extendMarkRange("link");
+              return href ? selected.setLink({ href }) : selected.unsetLink();
+            })
+          }
+        />
+      ) : null}
+    </>
   );
 }

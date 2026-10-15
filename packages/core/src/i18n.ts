@@ -13,6 +13,7 @@ export interface FolioCommandMessages {
 export interface FolioMessages {
   ui: {
     placeholder: string;
+    tableOfContents: { label: string; empty: string; more: string };
     slashMenu: {
       label: string;
       groups: Record<FolioCommandGroup, string>;
@@ -55,6 +56,7 @@ export interface FolioMessages {
     table: FolioCommandMessages;
     image: FolioCommandMessages;
     bookmark: FolioCommandMessages;
+    mention: FolioCommandMessages;
     toggle: FolioCommandMessages;
     toc: FolioCommandMessages;
   };
@@ -80,6 +82,11 @@ export interface FolioI18nOptions {
 const enMessages: FolioMessages = {
   ui: {
     placeholder: "Start writing...",
+    tableOfContents: {
+      label: "Table of contents",
+      empty: "Add a heading to build the table of contents.",
+      more: "{count} more headings",
+    },
     slashMenu: {
       label: "Slash commands",
       groups: {
@@ -184,6 +191,11 @@ const enMessages: FolioMessages = {
       description: "Save a rich link bookmark",
       keywords: ["link", "embed"],
     },
+    mention: {
+      label: "Mention",
+      description: "Mention a person or reference",
+      keywords: ["mention", "person", "reference"],
+    },
     toggle: {
       label: "Toggle",
       description: "Create a collapsible section",
@@ -200,6 +212,11 @@ const enMessages: FolioMessages = {
 const zhCNMessages: FolioMessages = {
   ui: {
     placeholder: "开始写作...",
+    tableOfContents: {
+      label: "目录",
+      empty: "添加标题后将在此显示目录。",
+      more: "另有 {count} 个标题",
+    },
     slashMenu: {
       label: "斜杠菜单",
       groups: {
@@ -304,6 +321,11 @@ const zhCNMessages: FolioMessages = {
       description: "保存富链接书签",
       keywords: ["链接", "嵌入", "书签"],
     },
+    mention: {
+      label: "提及",
+      description: "提及人物或引用对象",
+      keywords: ["提及", "人物", "引用"],
+    },
     toggle: {
       label: "折叠块",
       description: "创建可折叠章节",
@@ -317,20 +339,13 @@ const zhCNMessages: FolioMessages = {
   },
 };
 
-export const defaultFolioTranslations: Record<
-  BuiltInFolioLocale,
-  FolioMessages
-> = {
+export const defaultFolioTranslations: Record<BuiltInFolioLocale, FolioMessages> = {
   en: enMessages,
   "zh-CN": zhCNMessages,
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function cloneValue<T>(value: T): T {

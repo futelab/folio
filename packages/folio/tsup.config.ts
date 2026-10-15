@@ -2,10 +2,19 @@ import { resolve } from "node:path";
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/core.ts", "src/react.ts", "src/serialization.ts"],
+  entry: [
+    "src/index.ts",
+    "src/core.ts",
+    "src/react.ts",
+    "src/reader.ts",
+    "src/serialization.ts",
+    "src/serialization.browser.ts",
+  ],
   format: ["esm", "cjs"],
   platform: "browser",
   clean: true,
+  splitting: false,
+  noExternal: ["@futelab/folio-core", "@futelab/folio-core/browser", "@futelab/folio-react"],
   external: [
     "@tiptap/core",
     "@tiptap/extension-color",
@@ -37,7 +46,7 @@ export default defineConfig({
     "y-protocols",
     "yjs",
   ],
-  dts: true,
+  dts: { resolve: ["@futelab/folio-core", "@futelab/folio-core/browser", "@futelab/folio-react"] },
   minify: true,
   sourcemap: false,
   esbuildOptions(options) {

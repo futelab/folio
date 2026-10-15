@@ -20,9 +20,7 @@ describe("default Tiptap extensions", () => {
     editor.commands.setTextSelection({ from: 1, to: 13 });
 
     expect(editor.commands.toggleUnderline()).toBe(true);
-    expect(editor.getJSON().content?.[0]?.content?.[0]?.marks).toEqual([
-      { type: "underline" },
-    ]);
+    expect(editor.getJSON().content?.[0]?.content?.[0]?.marks).toEqual([{ type: "underline" }]);
 
     editor.destroy();
   });
