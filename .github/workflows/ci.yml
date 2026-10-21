@@ -44,7 +44,7 @@ jobs:
         env:
           GITHUB_PAGES: "true"
       - run: node scripts/check-pages.mjs
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: apps/demo/dist
       - uses: actions/deploy-pages@v5
