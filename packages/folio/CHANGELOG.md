@@ -1,5 +1,11 @@
 # @futelab/folio
 
+## 0.2.1
+
+### Patch Changes
+
+- Fix the Text block command reporting an action failure when the selected block is already a plain paragraph, including newly inserted blocks. Preserve existing text, marks, block IDs and selection for this no-op, and reject commands in read-only or destroyed editors.
+
 ## 0.2.0
 
 Upgrade note: the default schema now includes `columns`, `column` and `folioBlockId` (including null attributes on ordinary blocks). Upgrade editors, readers, converters and collaborating clients together. Version 0.1 validators may reject documents produced by 0.2; retain original backups for rollback or migrate explicitly. The snapshot envelope remains version 1 and does not imply backward schema compatibility.

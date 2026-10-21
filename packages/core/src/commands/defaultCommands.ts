@@ -1,3 +1,4 @@
+import type { EditorState } from "@tiptap/pm/state";
 import type { FolioCommandContribution } from "../extensions/types";
 import { createFolioMessages } from "../i18n";
 import type { FolioI18nOptions, FolioMessages } from "../i18n";
@@ -5,8 +6,18 @@ import { sanitizeFolioUrl } from "../security";
 
 function runEditorChain(editor: unknown, callback: (chain: any) => any): boolean {
   try {
-    const candidate = editor as { chain?: unknown } | null;
-    if (!candidate || typeof candidate.chain !== "function") return false;
+    const candidate = editor as {
+      chain?: unknown;
+      isEditable?: boolean;
+      isDestroyed?: boolean;
+    } | null;
+    if (
+      !candidate ||
+      candidate.isEditable === false ||
+      candidate.isDestroyed === true ||
+      typeof candidate.chain !== "function"
+    )
+      return false;
 
     const chain = candidate.chain();
     if (!chain || typeof chain.focus !== "function") return false;
@@ -20,6 +31,22 @@ function runEditorChain(editor: unknown, callback: (chain: any) => any): boolean
   } catch {
     return false;
   }
+}
+
+function isPlainParagraphSelection(editor: unknown): boolean {
+  const state = (editor as { state?: EditorState } | null)?.state;
+  if (!state) return false;
+  const paragraph = state.schema.nodes.paragraph;
+  let found = false;
+  let onlyParagraphs = true;
+  state.doc.nodesBetween(state.selection.from, state.selection.to, (node) => {
+    // Do not treat a paragraph inside a list/quote as a plain paragraph:
+    // the normal command still needs to normalize its surrounding blocks.
+    if (node.type === paragraph) found = true;
+    else onlyParagraphs = false;
+    return false;
+  });
+  return found && onlyParagraphs;
 }
 
 const commandMetadata = {
@@ -113,7 +140,13 @@ export function createDefaultFolioCommands(
       ...commandMetadata.paragraph,
       description: commandMessages.paragraph.description,
       keywords: [...commandMessages.paragraph.keywords],
-      action: ({ editor }) => runEditorChain(editor, (chain) => chain.setParagraph()),
+      // Tiptap reports false when setParagraph has nothing to convert. Choosing
+      // Text in the block menu is still successful and must preserve content,
+      // marks, block IDs and selection without rewriting the existing node.
+      action: ({ editor }) =>
+        runEditorChain(editor, (chain) =>
+          isPlainParagraphSelection(editor) ? chain : chain.setParagraph(),
+        ),
     },
     {
       name: "heading1",

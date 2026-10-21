@@ -26,6 +26,34 @@ const documentWithText = (text: string): FolioDocument => ({
 });
 
 describe("FolioEditor", () => {
+  it("accepts Text after inserting a block without reporting an action failure", async () => {
+    const onError = vi.fn();
+    let editor: Editor | undefined;
+    render(
+      <FolioEditor
+        defaultValue={documentWithText("Keep this text")}
+        locale="zh-CN"
+        onError={onError}
+        components={{
+          toolbar: (props) => {
+            editor = props.editor;
+            return props.children;
+          },
+        }}
+      />,
+    );
+    await waitFor(() => expect(editor).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "插入块" }));
+    await waitFor(() => expect(screen.getByRole("menuitem", { name: "文本" })).toBeEnabled());
+    const before = editor!.getJSON();
+    fireEvent.click(screen.getByRole("menuitem", { name: "文本" }));
+    expect(editor!.getJSON()).toEqual(before);
+    expect(editor!.state.doc.childCount).toBe(2);
+    expect(onError).not.toHaveBeenCalled();
+    expect(screen.queryByText("未能完成此操作。")).not.toBeInTheDocument();
+    expect(screen.queryByRole("menu", { name: "斜杠菜单" })).not.toBeInTheDocument();
+  });
+
   it("supports keyboard block ranges, batch deletion and one-step undo", async () => {
     let editor: Editor | undefined;
     render(
